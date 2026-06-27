@@ -1,0 +1,29 @@
+# Render blueprint for Wishwell (Next.js web service).
+# Mirrors the setup used for the user's other Render apps (free plan, oregon).
+# Secrets are set in the Render dashboard, not committed here.
+#
+# NOTE: NEXT_PUBLIC_* vars are baked in at BUILD time. If you change one,
+# trigger a fresh deploy (clear build cache) so the new value takes effect.
+services:
+  - type: web
+    name: gift-exchange
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false

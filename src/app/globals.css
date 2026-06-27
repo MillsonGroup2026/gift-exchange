@@ -1,26 +1,72 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Wishwell — warm, generous, lightly celebratory.
+   Phase 1 token set; the full visual identity lands in Phase 7.
+--------------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fff8f1;
+  --foreground: #3d2c24;
+  --card: #ffffff;
+  --card-foreground: #3d2c24;
+  --muted: #f6ece2;
+  --muted-foreground: #8a7568;
+  --brand: #db6e47;
+  --brand-foreground: #fffaf6;
+  --brand-strong: #c25733;
+  --accent: #2f5d50;
+  --accent-foreground: #f3faf7;
+  --border: #ecdfd4;
+  --ring: #db6e47;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-strong: var(--brand-strong);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #1c1614;
+    --foreground: #f3e9e1;
+    --card: #261d1a;
+    --card-foreground: #f3e9e1;
+    --muted: #2f2420;
+    --muted-foreground: #b7a294;
+    --brand: #e98a64;
+    --brand-foreground: #1c1614;
+    --brand-strong: #f0a282;
+    --accent: #6bb1a0;
+    --accent-foreground: #10201c;
+    --border: #3a2d28;
+    --ring: #e98a64;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
