@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed": "node --env-file=.env.local scripts/seed.mjs",
+    "smoke": "node --env-file=.env.local scripts/smoke-auth.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
