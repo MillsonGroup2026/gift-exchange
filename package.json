@@ -8,11 +8,19 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "node --env-file=.env.local scripts/seed.mjs",
-    "smoke": "node --env-file=.env.local scripts/smoke-auth.mjs"
+    "smoke": "node --env-file=.env.local scripts/smoke-auth.mjs",
+    "test:privacy": "node --env-file=.env.local scripts/privacy-regression.mjs"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
+    "@tiptap/pm": "^3.27.3",
+    "@tiptap/react": "^3.27.3",
+    "@tiptap/starter-kit": "^3.27.3",
+    "lucide-react": "^1.24.0",
     "next": "16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4"

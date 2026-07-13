@@ -70,3 +70,51 @@ body {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Rich-text (Tiptap) content — editor and rendered output share these styles. */
+.rich {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--foreground);
+  word-break: break-word;
+}
+.rich > * + * {
+  margin-top: 0.6em;
+}
+.rich h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.rich h3 {
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+.rich ul,
+.rich ol {
+  padding-left: 1.35em;
+}
+.rich ul {
+  list-style: disc;
+}
+.rich ol {
+  list-style: decimal;
+}
+.rich li > ul,
+.rich li > ol {
+  margin-top: 0.2em;
+}
+.rich a {
+  color: var(--brand-strong);
+  text-decoration: underline;
+}
+.rich strong {
+  font-weight: 600;
+}
+.rich p:empty::after {
+  content: "\00a0";
+}
+.ProseMirror {
+  min-height: inherit;
+}
+

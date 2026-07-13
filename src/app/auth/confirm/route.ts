@@ -1,4 +1,5 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getPublicOrigin } from "@/lib/site-url";
@@ -14,13 +15,21 @@ export async function GET(request: Request) {
   const origin = getPublicOrigin(request);
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  const next = searchParams.get("next") ?? "/dashboard";
+
+  const store = await cookies();
+  const cookieNext = store.get("sb_next")?.value;
+  const next =
+    (cookieNext && cookieNext.startsWith("/") ? cookieNext : null) ??
+    searchParams.get("next") ??
+    "/dashboard";
 
   if (token_hash && type) {
     const supabase = await createClient();
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      const res = NextResponse.redirect(`${origin}${next}`);
+      if (cookieNext) res.cookies.set("sb_next", "", { path: "/", maxAge: 0 });
+      return res;
     }
   }
 

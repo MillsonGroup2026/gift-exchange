@@ -5,7 +5,13 @@ import { requestMagicLink, type LoginState } from "./actions";
 
 const initialState: LoginState = { status: "idle" };
 
-export function LoginForm({ initialError }: { initialError?: boolean }) {
+export function LoginForm({
+  initialError,
+  next,
+}: {
+  initialError?: boolean;
+  next?: string;
+}) {
   const [state, formAction, pending] = useActionState(
     requestMagicLink,
     initialState,
@@ -31,6 +37,7 @@ export function LoginForm({ initialError }: { initialError?: boolean }) {
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      <input type="hidden" name="next" value={next ?? ""} />
       {(state.status === "error" || initialError) && (
         <p
           role="alert"
