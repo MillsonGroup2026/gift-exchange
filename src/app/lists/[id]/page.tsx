@@ -75,10 +75,13 @@ export default async function ListPage({
   ];
   const { data: profs } = await supabase
     .from("profiles")
-    .select("id,display_name")
+    .select("id,display_name,email")
     .in("id", peopleIds);
   const names: Record<string, string> = Object.fromEntries(
     (profs ?? []).map((p) => [p.id, p.display_name ?? "Someone"]),
+  );
+  const emails: Record<string, string> = Object.fromEntries(
+    (profs ?? []).map((p) => [p.id, p.email ?? ""]),
   );
 
   return (
@@ -88,6 +91,7 @@ export default async function ListPage({
       initialClaims={(claims ?? []) as Claim[]}
       initialComments={(comments ?? []) as Comment[]}
       names={names}
+      emails={emails}
       currentUserId={user.id}
       ownerName={names[list.owner_id] ?? "Someone"}
     />

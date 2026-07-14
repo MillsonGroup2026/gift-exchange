@@ -1,5 +1,5 @@
-// Seed demo accounts + a testable demo scenario. Idempotent — safe to re-run.
-// Run with: npm run seed
+// Seed demo accounts (with passwords) + a testable demo scenario.
+// Idempotent — safe to re-run. Run with: npm run seed
 import { createClient } from "@supabase/supabase-js";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -10,10 +10,10 @@ if (!url || !serviceKey) {
 }
 const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
-// The person testing the app. Their real account is seeded with a shared list
-// (to try the giver side) and an owned list with hidden claims (to prove the
-// owner sees nothing).
-const TESTER_EMAIL = "noah.conner@millson-group.com";
+// Shared password for the demo accounts so any role can be tried by logging in.
+const DEMO_PASSWORD = "wishwell2026";
+// Real accounts to (re)enable with the demo password so they can sign in too.
+const TESTER_EMAILS = ["noah.conner@millson-group.com", "2noahconner2@gmail.com"];
 
 const SEED_USERS = [
   { email: "nora.owner@example.com", display_name: "Nora Owner" },
@@ -23,28 +23,46 @@ const SEED_USERS = [
 
 const rich = (html, text) => ({ html, text });
 
-for (const u of SEED_USERS) {
-  const { error } = await admin.auth.admin.createUser({
-    email: u.email,
-    email_confirm: true,
-    user_metadata: { display_name: u.display_name },
-  });
-  if (error && !`${error.message}`.toLowerCase().includes("already") && error.status !== 422) {
-    console.error(`ERROR ${u.email}: ${error.message}`);
-  } else {
-    console.log(`user ok: ${u.email}`);
+const { data: existingList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+const byEmail = new Map((existingList?.users ?? []).map((u) => [(u.email ?? "").toLowerCase(), u]));
+
+async function upsertUser(email, display_name) {
+  const existing = byEmail.get(email.toLowerCase());
+  if (existing) {
+    await admin.auth.admin.updateUserById(existing.id, {
+      password: DEMO_PASSWORD,
+      email_confirm: true,
+      user_metadata: { display_name },
+    });
+    return existing.id;
   }
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password: DEMO_PASSWORD,
+    email_confirm: true,
+    user_metadata: { display_name },
+  });
+  if (error) {
+    console.error(`create failed ${email}: ${error.message}`);
+    return null;
+  }
+  return data.user.id;
 }
 
-const { data: profs } = await admin
-  .from("profiles")
-  .select("id,email")
-  .in("email", [...SEED_USERS.map((u) => u.email), TESTER_EMAIL]);
-const idByEmail = Object.fromEntries((profs ?? []).map((p) => [p.email, p.id]));
-const nora = idByEmail["nora.owner@example.com"];
-const gil = idByEmail["gil.giver@example.com"];
-const ivy = idByEmail["ivy.giver@example.com"];
-const tester = idByEmail[TESTER_EMAIL] ?? null;
+const nora = await upsertUser("nora.owner@example.com", "Nora Owner");
+const gil = await upsertUser("gil.giver@example.com", "Gil Giver");
+const ivy = await upsertUser("ivy.giver@example.com", "Ivy Giver");
+console.log(`demo users ready (password: ${DEMO_PASSWORD})`);
+
+let tester = null;
+for (const email of TESTER_EMAILS) {
+  const existing = byEmail.get(email.toLowerCase());
+  if (existing) {
+    await admin.auth.admin.updateUserById(existing.id, { password: DEMO_PASSWORD, email_confirm: true });
+    if (email === "noah.conner@millson-group.com") tester = existing.id;
+    console.log(`enabled password sign-in for existing account: ${email}`);
+  }
+}
 
 // Fresh demo data each run.
 await admin.from("lists").delete().like("title", "[DEMO]%");
@@ -65,7 +83,8 @@ async function addItems(listId, rows) {
   return data;
 }
 
-// --- List A: Nora's list, shared with the tester (test the GIVER side) -------
+// --- List A: Nora owns it. Log in as Nora => owner sees no claims. Log in as
+//     Gil/Ivy (or your own shared account) => giver view with live claims. -----
 const listA = await makeList(nora, "[DEMO] Nora's Birthday", "Birthday");
 const aItems = await addItems(listA.id, [
   {
@@ -94,7 +113,7 @@ await admin.from("list_shares").insert(
   [
     { list_id: listA.id, shared_with_user_id: gil, source: "invite" },
     { list_id: listA.id, shared_with_user_id: ivy, source: "invite" },
-    tester ? { list_id: listA.id, shared_with_email: TESTER_EMAIL, source: "invite" } : null,
+    tester ? { list_id: listA.id, shared_with_email: "noah.conner@millson-group.com", source: "invite" } : null,
   ].filter(Boolean),
 );
 await admin.from("claims").insert([
@@ -106,7 +125,7 @@ await admin.from("comments").insert([
   { list_id: listA.id, item_id: null, author_id: ivy, body: "Should we do a group gift for the big item?" },
 ]);
 
-// --- List B: owned by the tester, with HIDDEN claims (prove owner-blindness) -
+// --- List B: owned by the tester, with HIDDEN claims (prove owner-blindness). -
 if (tester) {
   const listB = await makeList(tester, "[DEMO] My Wishlist", "Just because");
   const bItems = await addItems(listB.id, [
@@ -118,7 +137,6 @@ if (tester) {
     { list_id: listB.id, shared_with_user_id: gil, source: "invite" },
     { list_id: listB.id, shared_with_user_id: ivy, source: "invite" },
   ]);
-  // Gil and Ivy secretly claim + comment — the tester (owner) must see NONE of this.
   await admin.from("claims").insert([
     { item_id: bItems[0].id, claimer_id: gil, quantity: 1, status: "purchased" },
     { item_id: bItems[1].id, claimer_id: ivy, quantity: 1, status: "planning" },
@@ -126,9 +144,11 @@ if (tester) {
   await admin.from("comments").insert([
     { list_id: listB.id, item_id: bItems[0].id, author_id: gil, body: "Already ordered these!" },
   ]);
-  console.log(`seeded owner-blindness demo for ${TESTER_EMAIL}`);
-} else {
-  console.log(`(tester ${TESTER_EMAIL} not found yet — sign in once, then re-run seed for the owner-blindness demo)`);
+  console.log("seeded owner-blindness demo owned by noah.conner@millson-group.com");
 }
 
+console.log("\nDemo logins (all password: " + DEMO_PASSWORD + "):");
+console.log("  nora.owner@example.com  — owns 'Nora's Birthday' (test owner-blindness)");
+console.log("  gil.giver@example.com   — giver on both demo lists");
+console.log("  ivy.giver@example.com   — giver on both demo lists");
 console.log("\nseed complete.");

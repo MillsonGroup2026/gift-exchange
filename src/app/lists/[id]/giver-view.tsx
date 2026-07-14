@@ -32,12 +32,15 @@ const priorityStyle: Record<Priority, string> = {
   3: "bg-muted text-muted-foreground",
 };
 
+type Person = { name: string; email: string };
+
 export function GiverView({
   list,
   items,
   initialClaims,
   initialComments,
   names,
+  emails,
   currentUserId,
   ownerName,
 }: {
@@ -46,16 +49,18 @@ export function GiverView({
   initialClaims: Claim[];
   initialComments: Comment[];
   names: Record<string, string>;
+  emails: Record<string, string>;
   currentUserId: string;
   ownerName: string;
 }) {
   const [claims, setClaims] = useState<Claim[]>(initialClaims);
   const [comments, setComments] = useState<Comment[]>(initialComments);
 
-  const nameOf = (id: string) =>
-    id === currentUserId ? "You" : names[id] ?? "Someone";
+  const who = (id: string): Person => ({
+    name: id === currentUserId ? "You" : names[id] ?? "Someone",
+    email: id === currentUserId ? "" : emails[id] ?? "",
+  });
 
-  // Realtime: keep claims/comments live so givers don't double-buy.
   useEffect(() => {
     const supabase = createClient();
     const itemIds = new Set(items.map((i) => i.id));
@@ -117,11 +122,10 @@ export function GiverView({
           <Lock className="mt-0.5 h-4 w-4 flex-none text-accent" />
           <p>
             <span className="font-medium">{ownerName} can&rsquo;t see any of this.</span> What you
-            claim and say here stays between the gift-givers.
+            claim and say here is visible only to the other gift-givers.
           </p>
         </div>
 
-        {/* Items */}
         <div className="mt-6 space-y-4">
           {items.map((item) => (
             <ItemBlock
@@ -131,9 +135,9 @@ export function GiverView({
               claims={claimsByItem.get(item.id) ?? []}
               comments={comments.filter((c) => c.item_id === item.id)}
               currentUserId={currentUserId}
-              nameOf={nameOf}
-              onClaimChange={(next) => setClaims(next)}
+              who={who}
               allClaims={claims}
+              onClaimChange={setClaims}
               onCommentAdd={(c) => setComments((p) => upsert(p, c))}
               onCommentDelete={(id) => setComments((p) => p.filter((x) => x.id !== id))}
             />
@@ -145,7 +149,6 @@ export function GiverView({
           )}
         </div>
 
-        {/* List-level discussion */}
         <section className="mt-10">
           <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
             <MessageCircle className="h-4 w-4" /> Group chat
@@ -159,7 +162,7 @@ export function GiverView({
               listId={list.id}
               itemId={null}
               currentUserId={currentUserId}
-              nameOf={nameOf}
+              who={who}
               onAdd={(c) => setComments((p) => upsert(p, c))}
               onDelete={(id) => setComments((p) => p.filter((x) => x.id !== id))}
             />
@@ -170,13 +173,22 @@ export function GiverView({
   );
 }
 
+function PersonLabel({ person }: { person: Person }) {
+  return (
+    <span>
+      <span className="font-medium text-foreground">{person.name}</span>
+      {person.email && <span className="text-xs text-muted-foreground"> · {person.email}</span>}
+    </span>
+  );
+}
+
 function ItemBlock({
   item,
   listId,
   claims,
   comments,
   currentUserId,
-  nameOf,
+  who,
   onClaimChange,
   allClaims,
   onCommentAdd,
@@ -187,7 +199,7 @@ function ItemBlock({
   claims: Claim[];
   comments: Comment[];
   currentUserId: string;
-  nameOf: (id: string) => string;
+  who: (id: string) => Person;
   onClaimChange: (next: Claim[]) => void;
   allClaims: Claim[];
   onCommentAdd: (c: Comment) => void;
@@ -243,21 +255,21 @@ function ItemBlock({
       {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
       {item.url && <LinkCard url={item.url} meta={item.link_meta} />}
 
-      {/* Who's getting it */}
       {others.length > 0 && (
-        <ul className="mt-3 space-y-1 text-sm">
+        <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
           {others.map((c) => (
-            <li key={c.id} className="flex items-center gap-2 text-muted-foreground">
-              <Gift className="h-3.5 w-3.5 text-accent" />
-              <span className="font-medium text-foreground">{nameOf(c.claimer_id)}</span>
-              {c.quantity > 1 ? ` (${c.quantity}) ` : " "}
-              is {c.status === "purchased" ? "buying this" : "planning to get this"}
+            <li key={c.id} className="flex flex-wrap items-center gap-x-1.5">
+              <Gift className="h-3.5 w-3.5 flex-none text-accent" />
+              <PersonLabel person={who(c.claimer_id)} />
+              <span>
+                {c.quantity > 1 ? `(${c.quantity}) ` : ""}
+                {c.status === "purchased" ? "· bought this" : "· planning to get this"}
+              </span>
             </li>
           ))}
         </ul>
       )}
 
-      {/* Claim controls */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {myClaim ? (
           <>
@@ -336,7 +348,7 @@ function ItemBlock({
             listId={listId}
             itemId={item.id}
             currentUserId={currentUserId}
-            nameOf={nameOf}
+            who={who}
             onAdd={onCommentAdd}
             onDelete={onCommentDelete}
           />
@@ -351,7 +363,7 @@ function CommentThread({
   listId,
   itemId,
   currentUserId,
-  nameOf,
+  who,
   onAdd,
   onDelete,
 }: {
@@ -359,7 +371,7 @@ function CommentThread({
   listId: string;
   itemId: string | null;
   currentUserId: string;
-  nameOf: (id: string) => string;
+  who: (id: string) => Person;
   onAdd: (c: Comment) => void;
   onDelete: (id: string) => void;
 }) {
@@ -386,13 +398,10 @@ function CommentThread({
             .sort((a, b) => a.created_at.localeCompare(b.created_at))
             .map((c) => (
               <li key={c.id} className="text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-foreground">{nameOf(c.author_id)}</span>
+                <div className="flex flex-wrap items-center gap-x-2">
+                  <PersonLabel person={who(c.author_id)} />
                   <span className="text-xs text-muted-foreground">
-                    {new Date(c.created_at).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {new Date(c.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                   </span>
                   {c.author_id === currentUserId && (
                     <button

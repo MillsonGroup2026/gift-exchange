@@ -25,6 +25,7 @@ export function SharePanel({
   const [shares, setShares] = useState<ListShare[]>(initialShares);
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copiedMsg, setCopiedMsg] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -37,6 +38,19 @@ export function SharePanel({
     navigator.clipboard?.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  function copyInvite() {
+    if (!link) return;
+    const msg =
+      "I made a wishlist on Wishwell 🎁 — you can see what I'd love and quietly claim " +
+      "what you want to give. I never see who claimed what, so the surprise stays safe. " +
+      "Open the link, make a quick account (just email + password), and you'll see my list. " +
+      "You can start your own list and share it back, too!\n\n" +
+      link;
+    navigator.clipboard?.writeText(msg);
+    setCopiedMsg(true);
+    setTimeout(() => setCopiedMsg(false), 1800);
   }
 
   function makeLink() {
@@ -118,6 +132,13 @@ export function SharePanel({
                 {copied ? "Copied" : "Copy"}
               </button>
             </div>
+            <button
+              type="button"
+              onClick={copyInvite}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              {copiedMsg ? "Invite message copied ✓" : "Copy an invite message"}
+            </button>
             <button
               type="button"
               onClick={revoke}
