@@ -21,11 +21,12 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowLeft, Eye, GripVertical, Plus, Trash2 } from "lucide-react";
 import { Wordmark } from "@/components/brand";
-import { OCCASIONS, type ListItem, type ListShare, type WishList } from "@/lib/types";
+import { OCCASIONS, type ItemOption, type ListItem, type ListShare, type WishList } from "@/lib/types";
 import {
   addItem,
   deleteList,
   reorderItem,
+  setItemOptions,
   softDeleteItem,
   updateItem,
   updateListMeta,
@@ -106,6 +107,16 @@ export function OwnerEditor({
   }
 
   async function handleSave(itemId: string, patch: ItemPatch) {
+    await updateItem(itemId, {
+      title: patch.title,
+      description: patch.description,
+      priority: patch.priority,
+    });
+    let savedOptions: ItemOption[] | undefined;
+    if (patch.options !== undefined) {
+      const r = await setItemOptions(itemId, list.id, patch.options);
+      if (r?.options) savedOptions = r.options as ItemOption[];
+    }
     setItems((prev) =>
       prev.map((i) =>
         i.id === itemId
@@ -113,14 +124,12 @@ export function OwnerEditor({
               ...i,
               ...(patch.title !== undefined ? { title: patch.title } : {}),
               ...(patch.description !== undefined ? { description: patch.description } : {}),
-              ...(patch.links !== undefined ? { links: patch.links } : {}),
               ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
-              ...(patch.quantity !== undefined ? { quantity: patch.quantity } : {}),
+              ...(savedOptions ? { options: savedOptions } : {}),
             }
           : i,
       ),
     );
-    await updateItem(itemId, patch);
   }
 
   async function handleDelete(itemId: string) {
@@ -135,7 +144,7 @@ export function OwnerEditor({
     setNewTitle("");
     const r = await addItem(list.id, t);
     if (r?.item) {
-      setItems((prev) => [...prev, r.item as ListItem]);
+      setItems((prev) => [...prev, { ...(r.item as ListItem), options: [] }]);
       setJustAdded((r.item as ListItem).id);
     }
   }

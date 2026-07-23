@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { randomBytes } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeHtml } from "@/lib/sanitize";
-import type { ClaimStatus, ItemLink, Priority, RichText } from "@/lib/types";
+import type { ClaimStatus, ItemLink, ItemOptionInput, Priority, RichText } from "@/lib/types";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -160,6 +160,39 @@ export async function reorderItem(itemId: string, position: number) {
   return { ok: true };
 }
 
+// Sync an item's sub-items (options). Kept options are updated in place (so
+// claims survive); removed ones are deleted; new ones inserted.
+export async function setItemOptions(itemId: string, listId: string, options: ItemOptionInput[]) {
+  const { supabase } = await requireUser();
+  const { data: existing } = await supabase
+    .from("list_item_options")
+    .select("id")
+    .eq("item_id", itemId);
+  const existingIds = new Set((existing ?? []).map((o) => o.id));
+  const keepIds = new Set(options.filter((o) => o.id).map((o) => o.id as string));
+
+  const toDelete = [...existingIds].filter((id) => !keepIds.has(id));
+  if (toDelete.length) await supabase.from("list_item_options").delete().in("id", toDelete);
+
+  let pos = 0;
+  for (const o of options) {
+    const name = o.name?.trim() || null;
+    const url = o.url?.trim() || null;
+    if (!name && !url) continue;
+    const row = { item_id: itemId, name, url, link_meta: o.link_meta ?? null, note: o.note?.trim() || null, position: pos++ };
+    if (o.id && existingIds.has(o.id)) await supabase.from("list_item_options").update(row).eq("id", o.id);
+    else await supabase.from("list_item_options").insert(row);
+  }
+
+  const { data: final } = await supabase
+    .from("list_item_options")
+    .select("*")
+    .eq("item_id", itemId)
+    .order("position", { ascending: true });
+  revalidatePath(`/lists/${listId}`);
+  return { ok: true, options: final ?? [] };
+}
+
 // ---------------------------------------------------------------------------
 // Sharing (owner)
 // ---------------------------------------------------------------------------
@@ -241,26 +274,27 @@ export async function setListStatus(listId: string, status: "draft" | "shared") 
 // ---------------------------------------------------------------------------
 // Claims & comments (giver)
 // ---------------------------------------------------------------------------
-export async function claimItem(
+export async function claimTarget(
   itemId: string,
+  optionId: string | null,
   listId: string,
-  quantity: number,
   status: ClaimStatus,
 ) {
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.rpc("claim_item", {
+  const { data, error } = await supabase.rpc("claim_target", {
     p_item_id: itemId,
-    p_quantity: Math.max(1, Math.floor(quantity)),
+    p_option_id: optionId,
     p_status: status,
   });
   if (error) {
     const msg = error.message || "";
-    if (msg.includes("over_claim"))
-      return { error: "Someone just claimed the last of these — the counts have updated." };
+    if (msg.includes("already_claimed"))
+      return { error: "Someone just claimed this — the list updated." };
     if (msg.includes("owner_cannot_claim"))
-      return { error: "You can't claim items on your own list." };
+      return { error: "You can't claim things on your own list." };
     if (msg.includes("no_access")) return { error: "You don't have access to this list." };
-    return { error: "Couldn't claim that item. Please try again." };
+    if (msg.includes("has_options")) return { error: "Pick a specific option to claim." };
+    return { error: "Couldn't claim that. Please try again." };
   }
   revalidatePath(`/lists/${listId}`);
   return { ok: true, claim: data };

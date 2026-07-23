@@ -32,7 +32,7 @@ export default async function ListPage({
 
   const { data: items } = await supabase
     .from("list_items")
-    .select("*")
+    .select("*, options:list_item_options(*)")
     .eq("list_id", id)
     .is("deleted_at", null)
     .order("position", { ascending: true });
@@ -60,7 +60,7 @@ export default async function ListPage({
   // Giver view — include soft-deleted items so claimers keep their context.
   const { data: allItems } = await supabase
     .from("list_items")
-    .select("*")
+    .select("*, options:list_item_options(*)")
     .eq("list_id", id)
     .order("position", { ascending: true });
   const giverItems = (allItems ?? []) as ListItem[];

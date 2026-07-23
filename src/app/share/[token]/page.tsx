@@ -8,7 +8,6 @@ import { ItemIcon } from "@/components/item-icon";
 import { createClient } from "@/lib/supabase/server";
 import {
   PRIORITY_LABELS,
-  type ItemLink,
   type LinkMeta,
   type Priority,
   type RichText as RichTextT,
@@ -22,15 +21,13 @@ const priorityStyle: Record<Priority, string> = {
   3: "bg-muted text-muted-foreground",
 };
 
+type PreviewOption = { id: string; name: string | null; url: string | null; link_meta: LinkMeta | null };
 type PreviewItem = {
   id: string;
   title: string;
   description: RichTextT;
-  url: string | null;
-  link_meta: LinkMeta | null;
-  links: ItemLink[];
   priority: Priority;
-  quantity: number;
+  options: PreviewOption[];
 };
 
 function InvalidLink() {
@@ -123,11 +120,21 @@ export default async function SharePage({
                 </span>
               </div>
               {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
-              {item.links?.length > 0 && (
+              {item.options?.length > 0 && (
                 <div className="mt-3 space-y-2">
-                  {item.links.map((l, i) => (
-                    <LinkCard key={i} url={l.url} meta={l.link_meta} label={l.label} />
-                  ))}
+                  {item.options.map((o) =>
+                    o.url ? (
+                      <LinkCard key={o.id} url={o.url} meta={o.link_meta} label={o.name} />
+                    ) : (
+                      <div
+                        key={o.id}
+                        className="flex items-center gap-2 rounded-xl border border-border bg-background p-3 text-sm"
+                      >
+                        <ItemIcon title={o.name ?? ""} className="h-4 w-4 flex-none text-muted-foreground" />
+                        <span className="font-medium text-foreground">{o.name}</span>
+                      </div>
+                    ),
+                  )}
                 </div>
               )}
             </div>

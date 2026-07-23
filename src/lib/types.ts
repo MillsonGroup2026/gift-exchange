@@ -27,6 +27,26 @@ export interface ItemLink {
   link_meta?: LinkMeta | null;
 }
 
+export interface ItemOption {
+  id: string;
+  item_id: string;
+  name: string | null;
+  url: string | null;
+  link_meta: LinkMeta | null;
+  note: string | null;
+  position: number;
+  created_at: string;
+}
+
+// Draft option in the editor (id present once saved).
+export interface ItemOptionInput {
+  id?: string;
+  name?: string | null;
+  url?: string | null;
+  link_meta?: LinkMeta | null;
+  note?: string | null;
+}
+
 export interface WishList {
   id: string;
   owner_id: string;
@@ -48,6 +68,7 @@ export interface ListItem {
   url: string | null;
   link_meta: LinkMeta | null;
   links: ItemLink[];
+  options: ItemOption[];
   priority: Priority;
   quantity: number;
   position: number;
@@ -59,6 +80,7 @@ export interface ListItem {
 export interface Claim {
   id: string;
   item_id: string;
+  option_id: string | null;
   claimer_id: string;
   quantity: number;
   status: ClaimStatus;

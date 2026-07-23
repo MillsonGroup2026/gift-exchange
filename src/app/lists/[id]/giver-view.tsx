@@ -17,7 +17,7 @@ import {
   type Priority,
   type WishList,
 } from "@/lib/types";
-import { addComment, claimItem, deleteComment, releaseClaim, updateClaim } from "@/app/lists/actions";
+import { addComment, claimTarget, deleteComment, releaseClaim, updateClaim } from "@/app/lists/actions";
 
 function upsert<T extends { id: string }>(rows: T[], row: T) {
   const i = rows.findIndex((r) => r.id === row.id);
@@ -99,7 +99,6 @@ export function GiverView({
   }, [claims]);
 
   const activeItems = items.filter((i) => !i.deleted_at);
-  // Removed items still shown (so claimers keep context) — only if they had claims/comments.
   const removedItems = items.filter(
     (i) =>
       i.deleted_at &&
@@ -205,44 +204,36 @@ function PersonLabel({ person }: { person: Person }) {
   );
 }
 
-function ItemBlock({
-  item,
+function ClaimTarget({
+  itemId,
+  optionId,
+  targetClaims,
   removed,
   listId,
-  claims,
-  comments,
   currentUserId,
   who,
-  onClaimChange,
   allClaims,
-  onCommentAdd,
-  onCommentDelete,
+  onClaimChange,
 }: {
-  item: ListItem;
+  itemId: string;
+  optionId: string | null;
+  targetClaims: Claim[];
   removed: boolean;
   listId: string;
-  claims: Claim[];
-  comments: Comment[];
   currentUserId: string;
   who: (id: string) => Person;
-  onClaimChange: (next: Claim[]) => void;
   allClaims: Claim[];
-  onCommentAdd: (c: Comment) => void;
-  onCommentDelete: (id: string) => void;
+  onClaimChange: (next: Claim[]) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [showComments, setShowComments] = useState(false);
-
-  const totalClaimed = claims.reduce((n, c) => n + c.quantity, 0);
-  const remaining = Math.max(0, item.quantity - totalClaimed);
-  const myClaim = claims.find((c) => c.claimer_id === currentUserId) ?? null;
-  const others = claims.filter((c) => c.claimer_id !== currentUserId);
+  const myClaim = targetClaims.find((c) => c.claimer_id === currentUserId) ?? null;
+  const otherClaim = targetClaims.find((c) => c.claimer_id !== currentUserId) ?? null;
 
   async function doClaim(status: ClaimStatus) {
     setBusy(true);
     setErr(null);
-    const r = await claimItem(item.id, listId, 1, status);
+    const r = await claimTarget(itemId, optionId, listId, status);
     if (r?.error) setErr(r.error);
     else if (r?.claim) onClaimChange(upsert(allClaims, r.claim as Claim));
     setBusy(false);
@@ -264,48 +255,15 @@ function ItemBlock({
   }
 
   return (
-    <div className={`rounded-2xl border border-border bg-card p-5 ${removed ? "opacity-70" : ""}`}>
-      <div className="flex gap-3">
-        <span className="mt-0.5 grid h-8 w-8 flex-none place-items-center rounded-lg bg-muted text-muted-foreground">
-          <ItemIcon title={item.title} className="h-4 w-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className={`font-semibold text-card-foreground ${removed ? "line-through" : ""}`}>{item.title}</h3>
-            {removed ? (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                Removed
-              </span>
-            ) : (
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityStyle[item.priority]}`}>
-                {PRIORITY_LABELS[item.priority]}
-              </span>
-            )}
-          </div>
-          {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
-          {item.links?.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {item.links.map((l, i) => (
-                <LinkCard key={i} url={l.url} meta={l.link_meta} label={l.label} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {others.length > 0 && (
-        <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
-          {others.map((c) => (
-            <li key={c.id} className="flex flex-wrap items-center gap-x-1.5">
-              <Gift className="h-3.5 w-3.5 flex-none text-accent" />
-              <PersonLabel person={who(c.claimer_id)} />
-              <span>{c.status === "purchased" ? "· bought this" : "· planning to get this"}</span>
-            </li>
-          ))}
-        </ul>
+    <div>
+      {otherClaim && (
+        <p className="mb-2 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
+          <Gift className="h-3.5 w-3.5 flex-none text-accent" />
+          <PersonLabel person={who(otherClaim.claimer_id)} />
+          <span>{otherClaim.status === "purchased" ? "· bought this" : "· planning to get this"}</span>
+        </p>
       )}
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {myClaim ? (
           <>
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent">
@@ -331,9 +289,13 @@ function ItemBlock({
               <Trash2 className="h-4 w-4" /> Release
             </button>
           </>
+        ) : otherClaim ? (
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground">
+            <Check className="h-4 w-4" /> Claimed
+          </span>
         ) : removed ? (
           <span className="text-sm text-muted-foreground">No longer available to claim.</span>
-        ) : remaining > 0 ? (
+        ) : (
           <>
             <button
               type="button"
@@ -352,26 +314,111 @@ function ItemBlock({
               Already bought it
             </button>
           </>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground">
-            <Check className="h-4 w-4" /> Claimed
-          </span>
         )}
+      </div>
+      {err && <p className="mt-2 text-sm text-brand-strong">{err}</p>}
+    </div>
+  );
+}
 
+function ItemBlock({
+  item,
+  removed,
+  listId,
+  claims,
+  comments,
+  currentUserId,
+  who,
+  onClaimChange,
+  allClaims,
+  onCommentAdd,
+  onCommentDelete,
+}: {
+  item: ListItem;
+  removed: boolean;
+  listId: string;
+  claims: Claim[];
+  comments: Comment[];
+  currentUserId: string;
+  who: (id: string) => Person;
+  onClaimChange: (next: Claim[]) => void;
+  allClaims: Claim[];
+  onCommentAdd: (c: Comment) => void;
+  onCommentDelete: (id: string) => void;
+}) {
+  const [showComments, setShowComments] = useState(false);
+  const claimsFor = (optionId: string | null) => claims.filter((c) => c.option_id === optionId);
+  const hasOptions = (item.options?.length ?? 0) > 0;
+
+  const claimTargetProps = {
+    itemId: item.id,
+    removed,
+    listId,
+    currentUserId,
+    who,
+    allClaims,
+    onClaimChange,
+  };
+
+  return (
+    <div className={`rounded-2xl border border-border bg-card p-5 ${removed ? "opacity-70" : ""}`}>
+      <div className="flex gap-3">
+        <span className="mt-0.5 grid h-8 w-8 flex-none place-items-center rounded-lg bg-muted text-muted-foreground">
+          <ItemIcon title={item.title} className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className={`font-semibold text-card-foreground ${removed ? "line-through" : ""}`}>{item.title}</h3>
+            {removed ? (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Removed</span>
+            ) : (
+              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityStyle[item.priority]}`}>
+                {PRIORITY_LABELS[item.priority]}
+              </span>
+            )}
+          </div>
+          {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
+        </div>
+      </div>
+
+      {hasOptions ? (
+        <div className="mt-4 space-y-4">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Claim an option</p>
+          {item.options.map((o) => (
+            <div key={o.id} className="space-y-2">
+              {o.url ? (
+                <LinkCard url={o.url} meta={o.link_meta} label={o.name} />
+              ) : (
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-background p-3 text-sm">
+                  <ItemIcon title={o.name ?? ""} className="h-4 w-4 flex-none text-muted-foreground" />
+                  <span className="font-medium text-foreground">{o.name}</span>
+                </div>
+              )}
+              <div className="pl-1">
+                <ClaimTarget {...claimTargetProps} optionId={o.id} targetClaims={claimsFor(o.id)} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4">
+          <ClaimTarget {...claimTargetProps} optionId={null} targetClaims={claimsFor(null)} />
+        </div>
+      )}
+
+      <div className="mt-4 flex justify-end border-t border-border pt-3">
         <button
           type="button"
           onClick={() => setShowComments((s) => !s)}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <MessageCircle className="h-4 w-4" />
           {comments.length > 0 ? comments.length : ""} {comments.length === 1 ? "note" : "notes"}
         </button>
       </div>
 
-      {err && <p className="mt-2 text-sm text-brand-strong">{err}</p>}
-
       {showComments && (
-        <div className="mt-4 border-t border-border pt-4">
+        <div className="mt-2 border-t border-border pt-4">
           <CommentThread
             comments={comments}
             listId={listId}

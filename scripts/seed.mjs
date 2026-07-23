@@ -95,6 +95,18 @@ async function addItems(listId, rows) {
   return data;
 }
 
+async function addOptions(itemId, opts) {
+  const { data, error } = await admin
+    .from("list_item_options")
+    .insert(opts.map((o, i) => ({ item_id: itemId, position: i, name: o.name ?? null, url: o.url ?? null, link_meta: o.link_meta ?? null })))
+    .select();
+  if (error) {
+    console.error("addOptions error:", error.message);
+    process.exit(1);
+  }
+  return data;
+}
+
 // --- List A: Nora owns it. Log in as Nora => owner sees no claims. Log in as
 //     Gil/Ivy (or your own shared account) => giver view with live claims. -----
 const listA = await makeList(nora, "[DEMO] Nora's Birthday", "Birthday");
@@ -102,12 +114,7 @@ const aItems = await addItems(listA.id, [
   {
     title: "Noise-cancelling headphones",
     priority: 1,
-    quantity: 1,
-    links: [
-      { url: "https://www.sony.com/electronics/headband-headphones", label: "Sony option", link_meta: { title: "Sony WH-1000XM5", siteName: "sony.com" } },
-      { url: "https://www.bose.com/p/headphones", label: "Bose option", link_meta: { title: "Bose QuietComfort Ultra", siteName: "bose.com" } },
-    ],
-    description: rich("<p>Over-ear, <strong>black</strong> if there's a choice.</p>", "Over-ear, black if there's a choice."),
+    description: rich("<p>Over-ear, <strong>black</strong> if there's a choice. Either brand works!</p>", "Over-ear, black if there's a choice."),
   },
   {
     title: "Cozy throw blanket",
@@ -120,16 +127,21 @@ const aItems = await addItems(listA.id, [
     title: "Board game night set",
     priority: 2,
     quantity: 1,
-    description: rich("<p>Ideas:</p><ul><li>Wingspan</li><li>Codenames</li><li>Ticket to Ride</li></ul>", "Ideas: Wingspan, Codenames, Ticket to Ride"),
+    description: rich("<p>Any of these would be great:</p>", "Any of these would be great"),
   },
 ]);
+const aOptions = await addOptions(aItems[0].id, [
+  { name: "Sony WH-1000XM5", url: "https://www.sony.com/electronics/headband-headphones", link_meta: { title: "Sony WH-1000XM5", siteName: "sony.com" } },
+  { name: "Bose QuietComfort Ultra", url: "https://www.bose.com/p/headphones", link_meta: { title: "Bose QuietComfort Ultra", siteName: "bose.com" } },
+]);
+await addOptions(aItems[3].id, [{ name: "Wingspan" }, { name: "Codenames" }, { name: "Ticket to Ride" }]);
 await admin.from("list_shares").insert([
   { list_id: listA.id, shared_with_user_id: gil, source: "invite" },
   { list_id: listA.id, shared_with_user_id: ivy, source: "invite" },
   ...TESTER_EMAILS.map((email) => ({ list_id: listA.id, shared_with_email: email, source: "invite" })),
 ]);
 await admin.from("claims").insert([
-  { item_id: aItems[0].id, claimer_id: gil, quantity: 1, status: "planning" },
+  { item_id: aItems[0].id, option_id: aOptions[0].id, claimer_id: gil, quantity: 1, status: "planning" },
   { item_id: aItems[1].id, claimer_id: ivy, quantity: 1, status: "purchased" },
 ]);
 await admin.from("comments").insert([

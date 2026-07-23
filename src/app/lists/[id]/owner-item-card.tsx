@@ -8,7 +8,7 @@ import { LinkCard } from "@/components/link-card";
 import { ItemIcon } from "@/components/item-icon";
 import {
   PRIORITY_LABELS,
-  type ItemLink,
+  type ItemOptionInput,
   type LinkMeta,
   type ListItem,
   type Priority,
@@ -18,9 +18,8 @@ import {
 export type ItemPatch = {
   title?: string;
   description?: RichTextT;
-  links?: ItemLink[];
+  options?: ItemOptionInput[];
   priority?: Priority;
-  quantity?: number;
 };
 
 const priorityStyle: Record<Priority, string> = {
@@ -45,49 +44,50 @@ export function OwnerItemCard({
   const [editing, setEditing] = useState(defaultEditing);
   const [title, setTitle] = useState(item.title);
   const [desc, setDesc] = useState<RichTextT>(item.description);
-  const [links, setLinks] = useState<ItemLink[]>(item.links ?? []);
   const [priority, setPriority] = useState<Priority>(item.priority);
-  const [newUrl, setNewUrl] = useState("");
-  const [newLabel, setNewLabel] = useState("");
-  const [fetchingMeta, setFetchingMeta] = useState(false);
+  const [options, setOptions] = useState<ItemOptionInput[]>(item.options ?? []);
+  const [fetchingIdx, setFetchingIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
-  async function addLink() {
-    let u = newUrl.trim();
-    if (!u) return;
-    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
-    setFetchingMeta(true);
-    let meta: LinkMeta | null = null;
-    try {
-      const r = await fetch(`/api/link-meta?url=${encodeURIComponent(u)}`);
-      if (r.ok) meta = (await r.json()) as LinkMeta;
-    } catch {
-      /* preview is best-effort */
-    }
-    setFetchingMeta(false);
-    setLinks((prev) => [...prev, { url: u, label: newLabel.trim() || null, link_meta: meta }]);
-    setNewUrl("");
-    setNewLabel("");
+  function updateOption(i: number, patch: Partial<ItemOptionInput>) {
+    setOptions((prev) => prev.map((o, idx) => (idx === i ? { ...o, ...patch } : o)));
   }
-
-  function removeLink(i: number) {
-    setLinks((prev) => prev.filter((_, idx) => idx !== i));
+  function addOption() {
+    setOptions((prev) => [...prev, { name: "", url: "" }]);
+  }
+  function removeOption(i: number) {
+    setOptions((prev) => prev.filter((_, idx) => idx !== i));
+  }
+  async function fetchOptMeta(i: number) {
+    const url = (options[i]?.url ?? "").trim();
+    if (!url) return;
+    const full = /^https?:\/\//i.test(url) ? url : "https://" + url;
+    setFetchingIdx(i);
+    try {
+      const r = await fetch(`/api/link-meta?url=${encodeURIComponent(full)}`);
+      if (r.ok) {
+        const meta = (await r.json()) as LinkMeta;
+        setOptions((prev) => prev.map((o, idx) => (idx === i ? { ...o, url: full, link_meta: meta } : o)));
+      }
+    } catch {
+      /* best-effort */
+    } finally {
+      setFetchingIdx(null);
+    }
   }
 
   async function save() {
     setSaving(true);
-    await onSave({ title: title.trim() || "Untitled item", description: desc, links, priority });
+    const clean = options.filter((o) => (o.name ?? "").trim() || (o.url ?? "").trim());
+    await onSave({ title: title.trim() || "Untitled item", description: desc, priority, options: clean });
     setSaving(false);
     setEditing(false);
   }
-
   function cancel() {
     setTitle(item.title);
     setDesc(item.description);
-    setLinks(item.links ?? []);
     setPriority(item.priority);
-    setNewUrl("");
-    setNewLabel("");
+    setOptions(item.options ?? []);
     setEditing(false);
   }
 
@@ -102,72 +102,58 @@ export function OwnerItemCard({
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base font-medium outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
         />
 
-        {/* Links */}
+        {/* Sub-items */}
         <div className="mt-3">
           <label className="mb-1 block text-xs font-medium text-muted-foreground">
-            Links (optional) — add as many options as you like
+            Sub-items (optional) — specific options a giver can claim. Leave empty to make the whole item claimable.
           </label>
-          {links.length > 0 && (
-            <ul className="mb-2 space-y-1.5">
-              {links.map((l, i) => (
-                <li
-                  key={i}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium text-foreground">
-                      {l.label || l.link_meta?.title || l.url}
-                    </span>
-                    <span className="block truncate text-xs text-muted-foreground">{l.url}</span>
+          <div className="space-y-2">
+            {options.map((o, i) => (
+              <div key={o.id ?? `new-${i}`} className="rounded-lg border border-border bg-background p-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-7 w-7 flex-none place-items-center rounded-md bg-muted text-muted-foreground">
+                    <ItemIcon title={o.name || o.url || ""} className="h-3.5 w-3.5" />
                   </span>
+                  <input
+                    value={o.name ?? ""}
+                    onChange={(e) => updateOption(i, { name: e.target.value })}
+                    placeholder="Name (e.g. Aaron Judge jersey)"
+                    className="min-w-0 flex-1 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
+                  />
                   <button
                     type="button"
-                    onClick={() => removeLink(i)}
+                    onClick={() => removeOption(i)}
                     className="flex-none text-muted-foreground hover:text-brand-strong"
-                    aria-label="Remove link"
+                    aria-label="Remove sub-item"
                   >
                     <X className="h-4 w-4" />
                   </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              value={newUrl}
-              onChange={(e) => setNewUrl(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addLink();
-                }
-              }}
-              placeholder="Paste a product link…"
-              className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
-            />
-            <input
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-              placeholder="Label (optional)"
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring sm:w-40"
-            />
-            <button
-              type="button"
-              onClick={addLink}
-              disabled={fetchingMeta || !newUrl.trim()}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-            >
-              {fetchingMeta ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Add link
-            </button>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    value={o.url ?? ""}
+                    onChange={(e) => updateOption(i, { url: e.target.value })}
+                    onBlur={() => fetchOptMeta(i)}
+                    placeholder="Link (optional)"
+                    className="min-w-0 flex-1 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs outline-none focus-visible:border-ring"
+                  />
+                  {fetchingIdx === i && <Loader2 className="h-4 w-4 flex-none animate-spin text-muted-foreground" />}
+                </div>
+              </div>
+            ))}
           </div>
+          <button
+            type="button"
+            onClick={addOption}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <Plus className="h-4 w-4" /> Add sub-item
+          </button>
         </div>
 
         {/* Notes */}
         <div className="mt-3">
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">
-            Notes (bold, lists, headings…)
-          </label>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">Notes (bold, lists, headings…)</label>
           <RichTextEditor
             key={item.id}
             initialHtml={item.description?.html}
@@ -235,11 +221,21 @@ export function OwnerItemCard({
           </span>
         </div>
         {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
-        {item.links?.length > 0 && (
+        {item.options?.length > 0 && (
           <div className="mt-3 space-y-2">
-            {item.links.map((l, i) => (
-              <LinkCard key={i} url={l.url} meta={l.link_meta} label={l.label} />
-            ))}
+            {item.options.map((o) =>
+              o.url ? (
+                <LinkCard key={o.id} url={o.url} meta={o.link_meta} label={o.name} />
+              ) : (
+                <div
+                  key={o.id}
+                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-3 text-sm"
+                >
+                  <ItemIcon title={o.name ?? ""} className="h-4 w-4 flex-none text-muted-foreground" />
+                  <span className="font-medium text-foreground">{o.name}</span>
+                </div>
+              ),
+            )}
           </div>
         )}
       </div>
