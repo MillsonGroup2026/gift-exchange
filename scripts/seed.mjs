@@ -66,6 +66,7 @@ for (const email of TESTER_EMAILS) {
 
 // Fresh demo data each run.
 await admin.from("lists").delete().like("title", "[DEMO]%");
+await admin.from("groups").delete().like("name", "[DEMO]%");
 
 async function makeList(ownerId, title, occasion) {
   const { data } = await admin
@@ -144,6 +145,35 @@ for (const t of testers) {
   ]);
   console.log(`seeded owner-blindness demo owned by ${t.email}`);
 }
+
+// --- Demo group + Secret Santa (draft, ready to draw). --------------------
+const { data: dgroup } = await admin
+  .from("groups")
+  .insert({ name: "[DEMO] Conner × Lake", owner_id: nora, join_token: "demo-" + Math.random().toString(36).slice(2) })
+  .select()
+  .single();
+await admin.from("group_members").insert([
+  { group_id: dgroup.id, user_id: nora, role: "owner", status: "active" },
+  { group_id: dgroup.id, user_id: gil, role: "member", status: "active" },
+  { group_id: dgroup.id, user_id: ivy, role: "member", status: "active" },
+  ...testers.map((t) => ({ group_id: dgroup.id, user_id: t.id, role: "member", status: "active" })),
+]);
+const { data: dex } = await admin
+  .from("santa_exchanges")
+  .insert({ group_id: dgroup.id, organizer_id: nora, name: "[DEMO] Family Secret Santa" })
+  .select()
+  .single();
+await admin.from("santa_participants").insert([
+  { exchange_id: dex.id, user_id: nora, team: "Conners" },
+  { exchange_id: dex.id, user_id: gil, team: "Conners" },
+  { exchange_id: dex.id, user_id: ivy, team: "Lake" },
+  ...testers.map((t, i) => ({ exchange_id: dex.id, user_id: t.id, team: i % 2 === 0 ? "Lake" : "Conners" })),
+]);
+await admin.from("santa_rules").insert([
+  { exchange_id: dex.id, from_team: "Conners", to_team: "Lake" },
+  { exchange_id: dex.id, from_team: "Lake", to_team: "Conners" },
+]);
+console.log("seeded demo group + Secret Santa (draft, organizer nora.owner@example.com)");
 
 console.log("\nDemo logins (all password: " + DEMO_PASSWORD + "):");
 console.log("  nora.owner@example.com  — owns 'Nora's Birthday' (test owner-blindness)");

@@ -194,6 +194,27 @@ export async function removeShare(shareId: string, listId: string) {
   return { ok: true };
 }
 
+export async function shareListToGroup(listId: string, groupId: string) {
+  const { supabase } = await requireUser();
+  const { data: existing } = await supabase
+    .from("list_shares")
+    .select("id")
+    .eq("list_id", listId)
+    .eq("shared_with_group_id", groupId)
+    .maybeSingle();
+  if (existing) return { error: "Already shared with that group." };
+
+  await supabase.from("lists").update({ status: "shared" }).eq("id", listId);
+  const { data, error } = await supabase
+    .from("list_shares")
+    .insert({ list_id: listId, shared_with_group_id: groupId, source: "invite" })
+    .select("*")
+    .single();
+  if (error) return { error: error.message };
+  revalidatePath(`/lists/${listId}`);
+  return { ok: true, share: data };
+}
+
 export async function setListStatus(listId: string, status: "draft" | "shared") {
   const { supabase } = await requireUser();
   const { error } = await supabase.from("lists").update({ status }).eq("id", listId);

@@ -45,11 +45,13 @@ export default async function ListPage({
       .select("*")
       .eq("list_id", id)
       .order("created_at", { ascending: true });
+    const { data: myGroups } = await supabase.from("groups").select("id,name").order("name");
     return (
       <OwnerEditor
         list={list as WishList}
         initialItems={(items ?? []) as ListItem[]}
         shares={(shares ?? []) as ListShare[]}
+        myGroups={(myGroups ?? []) as { id: string; name: string }[]}
         shareOrigin={await siteOrigin()}
       />
     );

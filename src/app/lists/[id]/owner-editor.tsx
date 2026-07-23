@@ -81,11 +81,13 @@ export function OwnerEditor({
   list,
   initialItems,
   shares,
+  myGroups,
   shareOrigin,
 }: {
   list: WishList;
   initialItems: ListItem[];
   shares: ListShare[];
+  myGroups: { id: string; name: string }[];
   shareOrigin: string;
 }) {
   const [items, setItems] = useState<ListItem[]>(initialItems);
@@ -269,6 +271,7 @@ export function OwnerEditor({
             listId={list.id}
             initialToken={list.public_share_token}
             initialShares={shares}
+            myGroups={myGroups}
             shareOrigin={shareOrigin}
           />
           {list.public_share_token && (

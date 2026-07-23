@@ -73,6 +73,66 @@ export interface ListShare {
   list_id: string;
   shared_with_user_id: string | null;
   shared_with_email: string | null;
+  shared_with_group_id: string | null;
   source: "invite" | "link";
+  created_at: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  owner_id: string;
+  is_public: boolean;
+  join_token: string | null;
+  created_at: string;
+}
+
+export interface GroupMember {
+  id: string;
+  group_id: string;
+  user_id: string | null;
+  invited_email: string | null;
+  role: "owner" | "member";
+  status: "invited" | "active";
+  created_at: string;
+}
+
+export interface SantaExchange {
+  id: string;
+  group_id: string;
+  organizer_id: string;
+  name: string;
+  status: "draft" | "assigned";
+  created_at: string;
+  assigned_at: string | null;
+}
+
+export interface SantaParticipant {
+  id: string;
+  exchange_id: string;
+  user_id: string;
+  team: string | null;
+  created_at: string;
+}
+
+export interface SantaRule {
+  id: string;
+  exchange_id: string;
+  from_team: string;
+  to_team: string;
+}
+
+export interface SantaExclusion {
+  id: string;
+  exchange_id: string;
+  giver_user_id: string;
+  recipient_user_id: string;
+}
+
+export interface SantaAssignment {
+  id: string;
+  exchange_id: string;
+  giver_user_id: string;
+  recipient_user_id: string;
   created_at: string;
 }

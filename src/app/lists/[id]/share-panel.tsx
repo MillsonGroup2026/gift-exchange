@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Check, Copy, Link2, Loader2, Mail, Trash2 } from "lucide-react";
+import { Check, Copy, Link2, Loader2, Mail, Trash2, Users } from "lucide-react";
 import {
   createShareLink,
   removeShare,
   revokeShareLink,
+  shareListToGroup,
   shareWithEmail,
 } from "@/app/lists/actions";
 import type { ListShare } from "@/lib/types";
@@ -14,11 +15,13 @@ export function SharePanel({
   listId,
   initialToken,
   initialShares,
+  myGroups,
   shareOrigin,
 }: {
   listId: string;
   initialToken: string | null;
   initialShares: ListShare[];
+  myGroups: { id: string; name: string }[];
   shareOrigin: string;
 }) {
   const [token, setToken] = useState(initialToken);
@@ -93,6 +96,15 @@ export function SharePanel({
     start(async () => {
       const r = await removeShare(id, listId);
       if (!r?.error) setShares((s) => s.filter((x) => x.id !== id));
+    });
+  }
+
+  function shareGroup(groupId: string) {
+    setErr(null);
+    start(async () => {
+      const r = await shareListToGroup(listId, groupId);
+      if (r?.error) setErr(r.error);
+      else if (r?.share) setShares((s) => [...s, r.share as ListShare]);
     });
   }
 
@@ -203,6 +215,45 @@ export function SharePanel({
             </li>
           ))}
         </ul>
+      )}
+
+      {myGroups.length > 0 && (
+        <div className="mt-5">
+          <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+            <Users className="h-4 w-4" /> Share with a group
+          </span>
+          <ul className="mt-2 space-y-1.5">
+            {myGroups.map((g) => {
+              const share = shares.find((s) => s.shared_with_group_id === g.id);
+              return (
+                <li
+                  key={g.id}
+                  className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-1.5 text-sm"
+                >
+                  <span className="truncate text-foreground">{g.name}</span>
+                  {share ? (
+                    <button
+                      type="button"
+                      onClick={() => remove(share.id)}
+                      className="flex-none text-xs font-medium text-accent transition-colors hover:text-brand-strong"
+                    >
+                      Shared &middot; remove
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => shareGroup(g.id)}
+                      disabled={pending}
+                      className="flex-none text-xs font-medium text-brand-strong underline-offset-2 hover:underline disabled:opacity-50"
+                    >
+                      Share
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </div>
   );
