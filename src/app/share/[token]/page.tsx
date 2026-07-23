@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Gift, Lock } from "lucide-react";
 import { Wordmark } from "@/components/brand";
 import { RichText } from "@/components/rich-text";
-import { LinkCard } from "@/components/link-card";
+import { SubItemDisplay } from "@/components/sub-item-display";
 import { ItemIcon } from "@/components/item-icon";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -21,7 +21,13 @@ const priorityStyle: Record<Priority, string> = {
   3: "bg-muted text-muted-foreground",
 };
 
-type PreviewOption = { id: string; name: string | null; url: string | null; link_meta: LinkMeta | null };
+type PreviewOption = {
+  id: string;
+  name: string | null;
+  url: string | null;
+  link_meta: LinkMeta | null;
+  note: string | null;
+};
 type PreviewItem = {
   id: string;
   title: string;
@@ -122,19 +128,9 @@ export default async function SharePage({
               {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
               {item.options?.length > 0 && (
                 <div className="mt-3 space-y-2">
-                  {item.options.map((o) =>
-                    o.url ? (
-                      <LinkCard key={o.id} url={o.url} meta={o.link_meta} label={o.name} />
-                    ) : (
-                      <div
-                        key={o.id}
-                        className="flex items-center gap-2 rounded-xl border border-border bg-background p-3 text-sm"
-                      >
-                        <ItemIcon title={o.name ?? ""} className="h-4 w-4 flex-none text-muted-foreground" />
-                        <span className="font-medium text-foreground">{o.name}</span>
-                      </div>
-                    ),
-                  )}
+                  {item.options.map((o) => (
+                    <SubItemDisplay key={o.id} option={o} />
+                  ))}
                 </div>
               )}
             </div>

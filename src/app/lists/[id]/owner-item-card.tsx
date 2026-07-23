@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { RichText } from "@/components/rich-text";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { LinkCard } from "@/components/link-card";
+import { SubItemDisplay } from "@/components/sub-item-display";
 import { ItemIcon } from "@/components/item-icon";
 import {
   PRIORITY_LABELS,
@@ -78,7 +78,7 @@ export function OwnerItemCard({
 
   async function save() {
     setSaving(true);
-    const clean = options.filter((o) => (o.name ?? "").trim() || (o.url ?? "").trim());
+    const clean = options.filter((o) => (o.name ?? "").trim() || (o.url ?? "").trim() || (o.note ?? "").trim());
     await onSave({ title: title.trim() || "Untitled item", description: desc, priority, options: clean });
     setSaving(false);
     setEditing(false);
@@ -139,6 +139,12 @@ export function OwnerItemCard({
                   />
                   {fetchingIdx === i && <Loader2 className="h-4 w-4 flex-none animate-spin text-muted-foreground" />}
                 </div>
+                <input
+                  value={o.note ?? ""}
+                  onChange={(e) => updateOption(i, { note: e.target.value })}
+                  placeholder="Note (optional) — e.g. size L, blue, any color is fine"
+                  className="mt-2 w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-xs outline-none focus-visible:border-ring"
+                />
               </div>
             ))}
           </div>
@@ -223,19 +229,9 @@ export function OwnerItemCard({
         {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
         {item.options?.length > 0 && (
           <div className="mt-3 space-y-2">
-            {item.options.map((o) =>
-              o.url ? (
-                <LinkCard key={o.id} url={o.url} meta={o.link_meta} label={o.name} />
-              ) : (
-                <div
-                  key={o.id}
-                  className="flex items-center gap-2 rounded-xl border border-border bg-background p-3 text-sm"
-                >
-                  <ItemIcon title={o.name ?? ""} className="h-4 w-4 flex-none text-muted-foreground" />
-                  <span className="font-medium text-foreground">{o.name}</span>
-                </div>
-              ),
-            )}
+            {item.options.map((o) => (
+              <SubItemDisplay key={o.id} option={o} />
+            ))}
           </div>
         )}
       </div>

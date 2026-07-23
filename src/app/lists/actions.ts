@@ -178,8 +178,9 @@ export async function setItemOptions(itemId: string, listId: string, options: It
   for (const o of options) {
     const name = o.name?.trim() || null;
     const url = o.url?.trim() || null;
-    if (!name && !url) continue;
-    const row = { item_id: itemId, name, url, link_meta: o.link_meta ?? null, note: o.note?.trim() || null, position: pos++ };
+    const note = o.note?.trim() || null;
+    if (!name && !url && !note) continue;
+    const row = { item_id: itemId, name, url, link_meta: o.link_meta ?? null, note, position: pos++ };
     if (o.id && existingIds.has(o.id)) await supabase.from("list_item_options").update(row).eq("id", o.id);
     else await supabase.from("list_item_options").insert(row);
   }

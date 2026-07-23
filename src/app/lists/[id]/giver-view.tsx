@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Check, Gift, Loader2, Lock, MessageCircle, ShoppingBag, Trash2 } from "lucide-react";
 import { Wordmark } from "@/components/brand";
 import { RichText } from "@/components/rich-text";
-import { LinkCard } from "@/components/link-card";
+import { SubItemDisplay } from "@/components/sub-item-display";
 import { ItemIcon } from "@/components/item-icon";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -423,14 +423,7 @@ function ItemBlock({
           <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Claim an option</p>
           {item.options.map((o) => (
             <div key={o.id} className="space-y-2">
-              {o.url ? (
-                <LinkCard url={o.url} meta={o.link_meta} label={o.name} />
-              ) : (
-                <div className="flex items-center gap-2 rounded-xl border border-border bg-background p-3 text-sm">
-                  <ItemIcon title={o.name ?? ""} className="h-4 w-4 flex-none text-muted-foreground" />
-                  <span className="font-medium text-foreground">{o.name}</span>
-                </div>
-              )}
+              <SubItemDisplay option={o} />
               <div className="pl-1">
                 <ClaimTarget {...claimTargetProps} optionId={o.id} targetClaims={claimsFor(o.id)} />
               </div>
