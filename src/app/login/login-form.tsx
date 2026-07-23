@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { authenticate, type AuthState } from "./actions";
 
@@ -84,6 +85,17 @@ export function LoginForm({ next }: { next?: string }) {
         >
           {pending ? "One moment…" : mode === "signup" ? "Create account" : "Sign in"}
         </button>
+
+        {mode === "signin" && (
+          <p className="text-center text-sm">
+            <Link
+              href="/forgot"
+              className="font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Forgot password?
+            </Link>
+          </p>
+        )}
       </form>
     </div>
   );

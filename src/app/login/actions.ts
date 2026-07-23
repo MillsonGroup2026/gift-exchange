@@ -1,9 +1,11 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export type AuthState = { error?: string };
+export type ResetState = { error?: string; sent?: boolean };
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -55,4 +57,31 @@ export async function authenticate(_prev: AuthState, formData: FormData): Promis
   }
 
   redirect(next);
+}
+
+/** Send a password-reset email. Always reports success (no account enumeration). */
+export async function requestPasswordReset(_prev: ResetState, formData: FormData): Promise<ResetState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) return { error: "Enter a valid email address." };
+  const supabase = await createClient();
+  const origin =
+    (await headers()).get("origin") ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/confirm?next=/account/password`,
+  });
+  return { sent: true };
+}
+
+/** Set a new password for the signed-in (or recovery-authenticated) user. */
+export async function updatePassword(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 6) return { error: "Password must be at least 6 characters." };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Your reset link expired — request a new one." };
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { error: error.message };
+  redirect("/dashboard");
 }
