@@ -54,12 +54,12 @@ const gil = await upsertUser("gil.giver@example.com", "Gil Giver");
 const ivy = await upsertUser("ivy.giver@example.com", "Ivy Giver");
 console.log(`demo users ready (password: ${DEMO_PASSWORD})`);
 
-let tester = null;
+const testers = [];
 for (const email of TESTER_EMAILS) {
   const existing = byEmail.get(email.toLowerCase());
   if (existing) {
     await admin.auth.admin.updateUserById(existing.id, { password: DEMO_PASSWORD, email_confirm: true });
-    if (email === "noah.conner@millson-group.com") tester = existing.id;
+    testers.push({ email, id: existing.id });
     console.log(`enabled password sign-in for existing account: ${email}`);
   }
 }
@@ -109,13 +109,11 @@ const aItems = await addItems(listA.id, [
     description: rich("<p>Ideas:</p><ul><li>Wingspan</li><li>Codenames</li><li>Ticket to Ride</li></ul>", "Ideas: Wingspan, Codenames, Ticket to Ride"),
   },
 ]);
-await admin.from("list_shares").insert(
-  [
-    { list_id: listA.id, shared_with_user_id: gil, source: "invite" },
-    { list_id: listA.id, shared_with_user_id: ivy, source: "invite" },
-    tester ? { list_id: listA.id, shared_with_email: "noah.conner@millson-group.com", source: "invite" } : null,
-  ].filter(Boolean),
-);
+await admin.from("list_shares").insert([
+  { list_id: listA.id, shared_with_user_id: gil, source: "invite" },
+  { list_id: listA.id, shared_with_user_id: ivy, source: "invite" },
+  ...TESTER_EMAILS.map((email) => ({ list_id: listA.id, shared_with_email: email, source: "invite" })),
+]);
 await admin.from("claims").insert([
   { item_id: aItems[0].id, claimer_id: gil, quantity: 1, status: "planning" },
   { item_id: aItems[1].id, claimer_id: ivy, quantity: 1, status: "purchased" },
@@ -125,9 +123,9 @@ await admin.from("comments").insert([
   { list_id: listA.id, item_id: null, author_id: ivy, body: "Should we do a group gift for the big item?" },
 ]);
 
-// --- List B: owned by the tester, with HIDDEN claims (prove owner-blindness). -
-if (tester) {
-  const listB = await makeList(tester, "[DEMO] My Wishlist", "Just because");
+// --- List B: owned by each tester account, with HIDDEN claims (owner-blindness) -
+for (const t of testers) {
+  const listB = await makeList(t.id, "[DEMO] My Wishlist", "Just because");
   const bItems = await addItems(listB.id, [
     { title: "Trail running shoes", priority: 1, quantity: 1, description: rich("<p>Size 10.5</p>", "Size 10.5") },
     { title: "A good cookbook", priority: 2, quantity: 1 },
@@ -144,7 +142,7 @@ if (tester) {
   await admin.from("comments").insert([
     { list_id: listB.id, item_id: bItems[0].id, author_id: gil, body: "Already ordered these!" },
   ]);
-  console.log("seeded owner-blindness demo owned by noah.conner@millson-group.com");
+  console.log(`seeded owner-blindness demo owned by ${t.email}`);
 }
 
 console.log("\nDemo logins (all password: " + DEMO_PASSWORD + "):");
