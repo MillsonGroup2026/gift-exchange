@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Wishwell — wishlists that keep the surprise",
+  title: "Wishing Well — wishlists that keep the surprise",
   description:
     "Make and share gift wishlists. Family and friends privately claim and coordinate gifts — without you ever finding out.",
 };

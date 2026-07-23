@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { randomBytes } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeHtml } from "@/lib/sanitize";
-import type { ClaimStatus, Priority, RichText } from "@/lib/types";
+import type { ClaimStatus, ItemLink, Priority, RichText } from "@/lib/types";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -19,6 +19,18 @@ async function requireUser() {
 function cleanDescription(desc: RichText): RichText {
   if (!desc || !desc.html?.trim()) return null;
   return { html: sanitizeHtml(desc.html), text: desc.text ?? "" };
+}
+
+function sanitizeLinks(links: ItemLink[]): ItemLink[] {
+  if (!Array.isArray(links)) return [];
+  return links
+    .map((l) => ({
+      url: String(l?.url ?? "").trim(),
+      label: l?.label ? String(l.label).trim().slice(0, 120) : null,
+      link_meta: l?.link_meta ?? null,
+    }))
+    .filter((l) => /^https?:\/\//i.test(l.url))
+    .slice(0, 20);
 }
 
 // ---------------------------------------------------------------------------
@@ -96,6 +108,7 @@ export async function updateItem(
     description?: RichText;
     url?: string | null;
     link_meta?: unknown;
+    links?: ItemLink[];
     priority?: Priority;
     quantity?: number;
   },
@@ -106,6 +119,7 @@ export async function updateItem(
   if (patch.description !== undefined) update.description = cleanDescription(patch.description);
   if (patch.url !== undefined) update.url = patch.url?.trim() || null;
   if (patch.link_meta !== undefined) update.link_meta = patch.link_meta;
+  if (patch.links !== undefined) update.links = sanitizeLinks(patch.links);
   if (patch.priority !== undefined) update.priority = patch.priority;
   if (patch.quantity !== undefined) update.quantity = Math.max(1, Math.floor(patch.quantity));
 

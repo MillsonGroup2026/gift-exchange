@@ -80,26 +80,25 @@ export default async function SantaPage({
     }
   }
 
-  let recipient: Recipient | null = null;
+  const recipients: Recipient[] = [];
   if (exchange.status === "assigned") {
     const { data: mine } = await supabase
       .from("santa_assignments")
       .select("recipient_user_id")
       .eq("exchange_id", exchangeId)
-      .eq("giver_user_id", user.id)
-      .maybeSingle();
-    if (mine) {
-      const rid = mine.recipient_user_id;
+      .eq("giver_user_id", user.id);
+    for (const m of mine ?? []) {
+      const rid = m.recipient_user_id;
       const { data: rlists } = await supabase
         .from("lists")
         .select("id,title")
         .eq("owner_id", rid)
         .eq("status", "shared");
-      recipient = {
+      recipients.push({
         name: nameOf(rid),
         email: emailOf(rid),
         lists: (rlists ?? []) as { id: string; title: string }[],
-      };
+      });
     }
   }
 
@@ -124,7 +123,7 @@ export default async function SantaPage({
         </div>
 
         {exchange.status === "assigned" ? (
-          <SantaReveal recipient={recipient} isOrganizer={isOrganizer} allAssignments={allAssignments} />
+          <SantaReveal recipients={recipients} isOrganizer={isOrganizer} allAssignments={allAssignments} />
         ) : (
           <div className="rounded-2xl border border-dashed border-border bg-card/50 p-6 text-center text-muted-foreground">
             {isOrganizer

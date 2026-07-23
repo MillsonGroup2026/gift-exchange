@@ -46,7 +46,7 @@ export function SharePanel({
   function copyInvite() {
     if (!link) return;
     const msg =
-      "I made a wishlist on Wishwell 🎁 — you can see what I'd love and quietly claim " +
+      "I made a wishlist on Wishing Well 🎁 — you can see what I'd love and quietly claim " +
       "what you want to give. I never see who claimed what, so the surprise stays safe. " +
       "Open the link, make a quick account (just email + password), and you'll see my list. " +
       "You can start your own list and share it back, too!\n\n" +

@@ -8,11 +8,11 @@ export type Recipient = { name: string; email: string; lists: { id: string; titl
 export type Assignment = { giver: string; recipient: string };
 
 export function SantaReveal({
-  recipient,
+  recipients,
   isOrganizer,
   allAssignments,
 }: {
-  recipient: Recipient | null;
+  recipients: Recipient[];
   isOrganizer: boolean;
   allAssignments: Assignment[] | null;
 }) {
@@ -21,31 +21,42 @@ export function SantaReveal({
 
   return (
     <div className="space-y-4">
-      {recipient ? (
+      {recipients.length > 0 ? (
         <div className="rounded-2xl border border-brand/30 bg-brand/5 p-8 text-center">
           <Gift className="mx-auto h-8 w-8 text-brand" />
-          <p className="mt-2 text-sm text-muted-foreground">You&rsquo;re giving a gift to…</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {recipients.length > 1 ? "You're giving gifts to…" : "You're giving a gift to…"}
+          </p>
           {show ? (
-            <div className="mt-1">
-              <p className="text-3xl font-semibold tracking-tight text-foreground">{recipient.name}</p>
-              {recipient.email && <p className="mt-0.5 text-sm text-muted-foreground">{recipient.email}</p>}
-              {recipient.lists.length > 0 ? (
-                <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  {recipient.lists.map((l) => (
-                    <Link
-                      key={l.id}
-                      href={`/lists/${l.id}`}
-                      className="inline-flex items-center rounded-full bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition-colors hover:bg-brand-strong"
-                    >
-                      Open their &ldquo;{l.title}&rdquo;
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-muted-foreground">
-                  They haven&rsquo;t shared a wishlist with this group yet.
+            <div className="mt-3 space-y-6">
+              {recipients.length > 1 && (
+                <p className="text-sm font-medium text-gold">
+                  🎁 You drew {recipients.length} people this year — so everyone gets a gift!
                 </p>
               )}
+              {recipients.map((r, i) => (
+                <div key={i}>
+                  <p className="text-2xl font-semibold tracking-tight text-foreground">{r.name}</p>
+                  {r.email && <p className="mt-0.5 text-sm text-muted-foreground">{r.email}</p>}
+                  {r.lists.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap justify-center gap-2">
+                      {r.lists.map((l) => (
+                        <Link
+                          key={l.id}
+                          href={`/lists/${l.id}`}
+                          className="inline-flex items-center rounded-full bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition-colors hover:bg-brand-strong"
+                        >
+                          Open their &ldquo;{l.title}&rdquo;
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      They haven&rsquo;t shared a wishlist with this group yet.
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
           ) : (
             <button

@@ -1,23 +1,23 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Wishwell — warm, generous, lightly celebratory.
-   Phase 1 token set; the full visual identity lands in Phase 7.
+   Wishing Well — festive, light and cheerful (not literal red/green).
 --------------------------------------------------------------------------- */
 :root {
-  --background: #fff8f1;
-  --foreground: #3d2c24;
+  --background: #fdf8f5;
+  --foreground: #332f38;
   --card: #ffffff;
-  --card-foreground: #3d2c24;
-  --muted: #f6ece2;
-  --muted-foreground: #8a7568;
-  --brand: #db6e47;
-  --brand-foreground: #fffaf6;
-  --brand-strong: #c25733;
-  --accent: #2f5d50;
-  --accent-foreground: #f3faf7;
-  --border: #ecdfd4;
-  --ring: #db6e47;
+  --card-foreground: #332f38;
+  --muted: #f5eef2;
+  --muted-foreground: #857b87;
+  --brand: #cf4d6f;
+  --brand-foreground: #fff7f9;
+  --brand-strong: #b63c5c;
+  --accent: #12897e;
+  --accent-foreground: #eefbf8;
+  --border: #ecdfe6;
+  --ring: #cf4d6f;
+  --gold: #d99a3c;
 }
 
 @theme inline {
@@ -34,25 +34,27 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-border: var(--border);
   --color-ring: var(--ring);
+  --color-gold: var(--gold);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #1c1614;
-    --foreground: #f3e9e1;
-    --card: #261d1a;
-    --card-foreground: #f3e9e1;
-    --muted: #2f2420;
-    --muted-foreground: #b7a294;
-    --brand: #e98a64;
-    --brand-foreground: #1c1614;
-    --brand-strong: #f0a282;
-    --accent: #6bb1a0;
-    --accent-foreground: #10201c;
-    --border: #3a2d28;
-    --ring: #e98a64;
+    --background: #201a20;
+    --foreground: #f2e9ee;
+    --card: #2a222a;
+    --card-foreground: #f2e9ee;
+    --muted: #322730;
+    --muted-foreground: #b6a7b1;
+    --brand: #ec6d8d;
+    --brand-foreground: #201a20;
+    --brand-strong: #f2879f;
+    --accent: #4fb7ab;
+    --accent-foreground: #0c201d;
+    --border: #3d3040;
+    --ring: #ec6d8d;
+    --gold: #e7b45a;
   }
 }
 

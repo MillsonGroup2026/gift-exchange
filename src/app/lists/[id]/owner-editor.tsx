@@ -113,8 +113,7 @@ export function OwnerEditor({
               ...i,
               ...(patch.title !== undefined ? { title: patch.title } : {}),
               ...(patch.description !== undefined ? { description: patch.description } : {}),
-              ...(patch.url !== undefined ? { url: patch.url } : {}),
-              ...(patch.link_meta !== undefined ? { link_meta: patch.link_meta ?? null } : {}),
+              ...(patch.links !== undefined ? { links: patch.links } : {}),
               ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
               ...(patch.quantity !== undefined ? { quantity: patch.quantity } : {}),
             }

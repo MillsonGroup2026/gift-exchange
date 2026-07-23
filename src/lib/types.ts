@@ -21,6 +21,12 @@ export interface LinkMeta {
   siteName?: string;
 }
 
+export interface ItemLink {
+  url: string;
+  label?: string | null;
+  link_meta?: LinkMeta | null;
+}
+
 export interface WishList {
   id: string;
   owner_id: string;
@@ -41,6 +47,7 @@ export interface ListItem {
   description: RichText;
   url: string | null;
   link_meta: LinkMeta | null;
+  links: ItemLink[];
   priority: Priority;
   quantity: number;
   position: number;

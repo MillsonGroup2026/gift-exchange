@@ -253,7 +253,13 @@ function ItemBlock({
         )}
       </div>
       {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
-      {item.url && <LinkCard url={item.url} meta={item.link_meta} />}
+      {item.links?.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {item.links.map((l, i) => (
+            <LinkCard key={i} url={l.url} meta={l.link_meta} label={l.label} />
+          ))}
+        </div>
+      )}
 
       {others.length > 0 && (
         <ul className="mt-3 space-y-1 text-sm text-muted-foreground">

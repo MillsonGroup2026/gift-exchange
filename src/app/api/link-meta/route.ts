@@ -37,7 +37,7 @@ export async function GET(request: Request) {
       signal: controller.signal,
       redirect: "follow",
       headers: {
-        "user-agent": "Mozilla/5.0 (compatible; WishwellBot/1.0; +https://wishwell.app)",
+        "user-agent": "Mozilla/5.0 (compatible; WishingWellBot/1.0; +https://wishing-well.app)",
         accept: "text/html,application/xhtml+xml",
       },
     });

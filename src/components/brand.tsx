@@ -28,7 +28,7 @@ export function Wordmark({ href = "/" }: { href?: string }) {
         <GiftMark className="h-4 w-4" />
       </span>
       <span className="text-lg font-semibold tracking-tight text-foreground">
-        Wishwell
+        Wishing&nbsp;Well
       </span>
     </Link>
   );

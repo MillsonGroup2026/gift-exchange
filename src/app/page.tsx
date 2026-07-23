@@ -78,7 +78,7 @@ export default function Home() {
 
       <footer className="border-t border-border">
         <div className="mx-auto w-full max-w-5xl px-6 py-6 text-sm text-muted-foreground">
-          Wishwell &middot; made for generous people
+          Wishing Well &middot; made for generous people
         </div>
       </footer>
     </div>

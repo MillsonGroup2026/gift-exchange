@@ -18,7 +18,7 @@ export default async function LoginPage({
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 pb-24">
         <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
           <h1 className="text-2xl font-semibold tracking-tight text-card-foreground">
-            Welcome to Wishwell
+            Welcome to Wishing Well
           </h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Sign in, or create a free account in seconds — just an email and a password.

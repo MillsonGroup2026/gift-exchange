@@ -92,8 +92,10 @@ const aItems = await addItems(listA.id, [
     title: "Noise-cancelling headphones",
     priority: 1,
     quantity: 1,
-    url: "https://www.sony.com/headphones",
-    link_meta: { title: "Sony WH-1000XM5", siteName: "sony.com" },
+    links: [
+      { url: "https://www.sony.com/electronics/headband-headphones", label: "Sony option", link_meta: { title: "Sony WH-1000XM5", siteName: "sony.com" } },
+      { url: "https://www.bose.com/p/headphones", label: "Bose option", link_meta: { title: "Bose QuietComfort Ultra", siteName: "bose.com" } },
+    ],
     description: rich("<p>Over-ear, <strong>black</strong> if there's a choice.</p>", "Over-ear, black if there's a choice."),
   },
   {
