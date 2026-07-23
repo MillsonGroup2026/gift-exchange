@@ -5,6 +5,7 @@ import { Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { RichText } from "@/components/rich-text";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { LinkCard } from "@/components/link-card";
+import { ItemIcon } from "@/components/item-icon";
 import {
   PRIORITY_LABELS,
   type ItemLink,
@@ -46,7 +47,6 @@ export function OwnerItemCard({
   const [desc, setDesc] = useState<RichTextT>(item.description);
   const [links, setLinks] = useState<ItemLink[]>(item.links ?? []);
   const [priority, setPriority] = useState<Priority>(item.priority);
-  const [quantity, setQuantity] = useState<number>(item.quantity);
   const [newUrl, setNewUrl] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [fetchingMeta, setFetchingMeta] = useState(false);
@@ -76,7 +76,7 @@ export function OwnerItemCard({
 
   async function save() {
     setSaving(true);
-    await onSave({ title: title.trim() || "Untitled item", description: desc, links, priority, quantity });
+    await onSave({ title: title.trim() || "Untitled item", description: desc, links, priority });
     setSaving(false);
     setEditing(false);
   }
@@ -86,7 +86,6 @@ export function OwnerItemCard({
     setDesc(item.description);
     setLinks(item.links ?? []);
     setPriority(item.priority);
-    setQuantity(item.quantity);
     setNewUrl("");
     setNewLabel("");
     setEditing(false);
@@ -159,7 +158,7 @@ export function OwnerItemCard({
               className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
             >
               {fetchingMeta ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Add
+              Add link
             </button>
           </div>
         </div>
@@ -176,29 +175,19 @@ export function OwnerItemCard({
           />
         </div>
 
-        {/* Priority + quantity */}
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        {/* Priority */}
+        <div className="mt-3">
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-muted-foreground">How much? (priority)</span>
             <select
               value={priority}
               onChange={(e) => setPriority(Number(e.target.value) as Priority)}
-              className="h-[38px] rounded-lg border border-border bg-background px-2 text-sm outline-none focus-visible:border-ring"
+              className="h-[38px] w-full rounded-lg border border-border bg-background px-2 text-sm outline-none focus-visible:border-ring sm:w-56"
             >
               <option value={1}>Would love it</option>
               <option value={2}>Would like it</option>
               <option value={3}>Nice extra</option>
             </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted-foreground">Quantity</span>
-            <input
-              type="number"
-              min={1}
-              value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
-              className="h-[38px] rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring"
-            />
           </label>
         </div>
 
@@ -233,17 +222,17 @@ export function OwnerItemCard({
   }
 
   return (
-    <div className="group flex gap-2 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-border/80">
+    <div className="group flex gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-border/80">
       {dragHandle}
+      <span className="mt-0.5 grid h-8 w-8 flex-none place-items-center rounded-lg bg-muted text-muted-foreground">
+        <ItemIcon title={item.title} className="h-4 w-4" />
+      </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-semibold text-card-foreground">{item.title}</h3>
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityStyle[item.priority]}`}>
             {PRIORITY_LABELS[item.priority]}
           </span>
-          {item.quantity > 1 && (
-            <span className="text-xs text-muted-foreground">Wants {item.quantity}</span>
-          )}
         </div>
         {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
         {item.links?.length > 0 && (
@@ -257,10 +246,10 @@ export function OwnerItemCard({
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="h-8 flex-none rounded-lg px-2 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100"
+        className="inline-flex h-9 flex-none items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         aria-label="Edit item"
       >
-        <Pencil className="h-4 w-4" />
+        <Pencil className="h-4 w-4" /> Edit
       </button>
     </div>
   );

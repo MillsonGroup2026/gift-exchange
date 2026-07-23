@@ -4,6 +4,7 @@ import { Gift, Lock } from "lucide-react";
 import { Wordmark } from "@/components/brand";
 import { RichText } from "@/components/rich-text";
 import { LinkCard } from "@/components/link-card";
+import { ItemIcon } from "@/components/item-icon";
 import { createClient } from "@/lib/supabase/server";
 import {
   PRIORITY_LABELS,
@@ -112,14 +113,14 @@ export default async function SharePage({
         <div className="mt-6 space-y-4">
           {items.map((item) => (
             <div key={item.id} className="rounded-2xl border border-border bg-card p-5">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-muted text-muted-foreground">
+                  <ItemIcon title={item.title} className="h-4 w-4" />
+                </span>
                 <h3 className="font-semibold text-card-foreground">{item.title}</h3>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityStyle[item.priority]}`}>
                   {PRIORITY_LABELS[item.priority]}
                 </span>
-                {item.quantity > 1 && (
-                  <span className="text-xs text-muted-foreground">Wants {item.quantity}</span>
-                )}
               </div>
               {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
               {item.links?.length > 0 && (

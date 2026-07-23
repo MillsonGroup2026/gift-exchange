@@ -20,7 +20,12 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options),
+              // Force persistent cookies so the session survives tab eviction on
+              // mobile (otherwise returning from an external link can log you out).
+              cookieStore.set(name, value, {
+                ...options,
+                maxAge: options?.maxAge ?? 60 * 60 * 24 * 365,
+              }),
             );
           } catch {
             // Called from a Server Component where cookies are read-only.

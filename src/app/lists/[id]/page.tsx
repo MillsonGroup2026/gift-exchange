@@ -57,8 +57,14 @@ export default async function ListPage({
     );
   }
 
-  // Giver view
-  const itemIds = (items ?? []).map((i) => i.id);
+  // Giver view — include soft-deleted items so claimers keep their context.
+  const { data: allItems } = await supabase
+    .from("list_items")
+    .select("*")
+    .eq("list_id", id)
+    .order("position", { ascending: true });
+  const giverItems = (allItems ?? []) as ListItem[];
+  const itemIds = giverItems.map((i) => i.id);
   const { data: claims } = itemIds.length
     ? await supabase.from("claims").select("*").in("item_id", itemIds)
     : { data: [] as Claim[] };
@@ -89,7 +95,7 @@ export default async function ListPage({
   return (
     <GiverView
       list={list as WishList}
-      items={(items ?? []) as ListItem[]}
+      items={giverItems}
       initialClaims={(claims ?? []) as Claim[]}
       initialComments={(comments ?? []) as Comment[]}
       names={names}

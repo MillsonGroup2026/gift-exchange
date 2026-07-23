@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Gift, Loader2, Lock, MessageCircle, ShoppingBag, Tras
 import { Wordmark } from "@/components/brand";
 import { RichText } from "@/components/rich-text";
 import { LinkCard } from "@/components/link-card";
+import { ItemIcon } from "@/components/item-icon";
 import { createClient } from "@/lib/supabase/client";
 import {
   PRIORITY_LABELS,
@@ -97,7 +98,31 @@ export function GiverView({
     return m;
   }, [claims]);
 
+  const activeItems = items.filter((i) => !i.deleted_at);
+  // Removed items still shown (so claimers keep context) — only if they had claims/comments.
+  const removedItems = items.filter(
+    (i) =>
+      i.deleted_at &&
+      ((claimsByItem.get(i.id)?.length ?? 0) > 0 || comments.some((c) => c.item_id === i.id)),
+  );
   const listComments = comments.filter((c) => c.item_id === null);
+
+  const renderItem = (item: ListItem, removed: boolean) => (
+    <ItemBlock
+      key={item.id}
+      item={item}
+      removed={removed}
+      listId={list.id}
+      claims={claimsByItem.get(item.id) ?? []}
+      comments={comments.filter((c) => c.item_id === item.id)}
+      currentUserId={currentUserId}
+      who={who}
+      allClaims={claims}
+      onClaimChange={setClaims}
+      onCommentAdd={(c) => setComments((p) => upsert(p, c))}
+      onCommentDelete={(id) => setComments((p) => p.filter((x) => x.id !== id))}
+    />
+  );
 
   return (
     <div className="flex flex-1 flex-col">
@@ -127,27 +152,25 @@ export function GiverView({
         </div>
 
         <div className="mt-6 space-y-4">
-          {items.map((item) => (
-            <ItemBlock
-              key={item.id}
-              item={item}
-              listId={list.id}
-              claims={claimsByItem.get(item.id) ?? []}
-              comments={comments.filter((c) => c.item_id === item.id)}
-              currentUserId={currentUserId}
-              who={who}
-              allClaims={claims}
-              onClaimChange={setClaims}
-              onCommentAdd={(c) => setComments((p) => upsert(p, c))}
-              onCommentDelete={(id) => setComments((p) => p.filter((x) => x.id !== id))}
-            />
-          ))}
-          {items.length === 0 && (
+          {activeItems.map((item) => renderItem(item, false))}
+          {activeItems.length === 0 && (
             <p className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-muted-foreground">
               This list doesn&rsquo;t have any items yet.
             </p>
           )}
         </div>
+
+        {removedItems.length > 0 && (
+          <section className="mt-8">
+            <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+              No longer on the list
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {ownerName} removed these, but they&rsquo;re kept here since they were claimed.
+            </p>
+            <div className="mt-3 space-y-4">{removedItems.map((item) => renderItem(item, true))}</div>
+          </section>
+        )}
 
         <section className="mt-10">
           <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
@@ -184,6 +207,7 @@ function PersonLabel({ person }: { person: Person }) {
 
 function ItemBlock({
   item,
+  removed,
   listId,
   claims,
   comments,
@@ -195,6 +219,7 @@ function ItemBlock({
   onCommentDelete,
 }: {
   item: ListItem;
+  removed: boolean;
   listId: string;
   claims: Claim[];
   comments: Comment[];
@@ -207,7 +232,6 @@ function ItemBlock({
 }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [qty, setQty] = useState(1);
   const [showComments, setShowComments] = useState(false);
 
   const totalClaimed = claims.reduce((n, c) => n + c.quantity, 0);
@@ -218,7 +242,7 @@ function ItemBlock({
   async function doClaim(status: ClaimStatus) {
     setBusy(true);
     setErr(null);
-    const r = await claimItem(item.id, listId, item.quantity > 1 ? qty : 1, status);
+    const r = await claimItem(item.id, listId, 1, status);
     if (r?.error) setErr(r.error);
     else if (r?.claim) onClaimChange(upsert(allClaims, r.claim as Claim));
     setBusy(false);
@@ -240,26 +264,34 @@ function ItemBlock({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="font-semibold text-card-foreground">{item.title}</h3>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityStyle[item.priority]}`}>
-          {PRIORITY_LABELS[item.priority]}
+    <div className={`rounded-2xl border border-border bg-card p-5 ${removed ? "opacity-70" : ""}`}>
+      <div className="flex gap-3">
+        <span className="mt-0.5 grid h-8 w-8 flex-none place-items-center rounded-lg bg-muted text-muted-foreground">
+          <ItemIcon title={item.title} className="h-4 w-4" />
         </span>
-        {item.quantity > 1 && (
-          <span className="text-xs text-muted-foreground">
-            {totalClaimed}/{item.quantity} claimed
-          </span>
-        )}
-      </div>
-      {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
-      {item.links?.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {item.links.map((l, i) => (
-            <LinkCard key={i} url={l.url} meta={l.link_meta} label={l.label} />
-          ))}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className={`font-semibold text-card-foreground ${removed ? "line-through" : ""}`}>{item.title}</h3>
+            {removed ? (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                Removed
+              </span>
+            ) : (
+              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityStyle[item.priority]}`}>
+                {PRIORITY_LABELS[item.priority]}
+              </span>
+            )}
+          </div>
+          {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
+          {item.links?.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {item.links.map((l, i) => (
+                <LinkCard key={i} url={l.url} meta={l.link_meta} label={l.label} />
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {others.length > 0 && (
         <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
@@ -267,10 +299,7 @@ function ItemBlock({
             <li key={c.id} className="flex flex-wrap items-center gap-x-1.5">
               <Gift className="h-3.5 w-3.5 flex-none text-accent" />
               <PersonLabel person={who(c.claimer_id)} />
-              <span>
-                {c.quantity > 1 ? `(${c.quantity}) ` : ""}
-                {c.status === "purchased" ? "· bought this" : "· planning to get this"}
-              </span>
+              <span>{c.status === "purchased" ? "· bought this" : "· planning to get this"}</span>
             </li>
           ))}
         </ul>
@@ -282,15 +311,17 @@ function ItemBlock({
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent">
               <Check className="h-4 w-4" /> You&rsquo;re getting this
             </span>
-            <button
-              type="button"
-              onClick={toggleStatus}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-            >
-              <ShoppingBag className="h-4 w-4" />
-              {myClaim.status === "purchased" ? "Purchased" : "Mark purchased"}
-            </button>
+            {!removed && (
+              <button
+                type="button"
+                onClick={toggleStatus}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+              >
+                <ShoppingBag className="h-4 w-4" />
+                {myClaim.status === "purchased" ? "Purchased" : "Mark purchased"}
+              </button>
+            )}
             <button
               type="button"
               onClick={release}
@@ -300,18 +331,10 @@ function ItemBlock({
               <Trash2 className="h-4 w-4" /> Release
             </button>
           </>
+        ) : removed ? (
+          <span className="text-sm text-muted-foreground">No longer available to claim.</span>
         ) : remaining > 0 ? (
           <>
-            {item.quantity > 1 && (
-              <input
-                type="number"
-                min={1}
-                max={remaining}
-                value={qty}
-                onChange={(e) => setQty(Math.min(remaining, Math.max(1, Number(e.target.value) || 1)))}
-                className="h-9 w-16 rounded-lg border border-border bg-background px-2 text-sm outline-none focus-visible:border-ring"
-              />
-            )}
             <button
               type="button"
               onClick={() => doClaim("planning")}
@@ -331,7 +354,7 @@ function ItemBlock({
           </>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground">
-            <Check className="h-4 w-4" /> Fully claimed
+            <Check className="h-4 w-4" /> Claimed
           </span>
         )}
 
