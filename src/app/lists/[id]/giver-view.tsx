@@ -43,6 +43,7 @@ export function GiverView({
   names,
   emails,
   currentUserId,
+  defaultAnonymous,
   ownerName,
 }: {
   list: WishList;
@@ -52,6 +53,7 @@ export function GiverView({
   names: Record<string, string>;
   emails: Record<string, string>;
   currentUserId: string;
+  defaultAnonymous: boolean;
   ownerName: string;
 }) {
   const [claims, setClaims] = useState<Claim[]>(initialClaims);
@@ -67,11 +69,12 @@ export function GiverView({
     const itemIds = new Set(items.map((i) => i.id));
     const channel = supabase
       .channel(`list-${list.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "claims" }, (payload) => {
-        const rec = (payload.new ?? payload.old) as Claim;
-        if (!rec || !itemIds.has(rec.item_id)) return;
-        if (payload.eventType === "DELETE") setClaims((p) => p.filter((c) => c.id !== rec.id));
-        else setClaims((p) => upsert(p, payload.new as Claim));
+      .on("postgres_changes", { event: "*", schema: "public", table: "claims" }, async (payload) => {
+        const rec = (payload.new ?? payload.old) as { item_id?: string };
+        if (!rec?.item_id || !itemIds.has(rec.item_id)) return;
+        // Refetch through the redacting RPC so anonymous claimers stay hidden.
+        const { data } = await supabase.rpc("list_claims", { p_list_id: list.id });
+        if (data) setClaims(data as Claim[]);
       })
       .on(
         "postgres_changes",
@@ -115,6 +118,7 @@ export function GiverView({
       claims={claimsByItem.get(item.id) ?? []}
       comments={comments.filter((c) => c.item_id === item.id)}
       currentUserId={currentUserId}
+      defaultAnonymous={defaultAnonymous}
       who={who}
       allClaims={claims}
       onClaimChange={setClaims}
@@ -211,6 +215,7 @@ function ClaimTarget({
   removed,
   listId,
   currentUserId,
+  defaultAnonymous,
   who,
   allClaims,
   onClaimChange,
@@ -221,19 +226,24 @@ function ClaimTarget({
   removed: boolean;
   listId: string;
   currentUserId: string;
+  defaultAnonymous: boolean;
   who: (id: string) => Person;
   allClaims: Claim[];
   onClaimChange: (next: Claim[]) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<ClaimStatus | null>(null);
   const myClaim = targetClaims.find((c) => c.claimer_id === currentUserId) ?? null;
   const otherClaim = targetClaims.find((c) => c.claimer_id !== currentUserId) ?? null;
 
-  async function doClaim(status: ClaimStatus) {
+  async function confirmClaim(anonymous: boolean) {
+    if (!pendingStatus) return;
+    const status = pendingStatus;
+    setPendingStatus(null);
     setBusy(true);
     setErr(null);
-    const r = await claimTarget(itemId, optionId, listId, status);
+    const r = await claimTarget(itemId, optionId, listId, status, anonymous);
     if (r?.error) setErr(r.error);
     else if (r?.claim) onClaimChange(upsert(allClaims, r.claim as Claim));
     setBusy(false);
@@ -254,68 +264,92 @@ function ClaimTarget({
     setBusy(false);
   }
 
+  const primary = "rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-brand-foreground transition-colors hover:bg-brand-strong";
+  const secondary = "rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted";
+
   return (
     <div>
       {otherClaim && (
         <p className="mb-2 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
           <Gift className="h-3.5 w-3.5 flex-none text-accent" />
-          <PersonLabel person={who(otherClaim.claimer_id)} />
-          <span>{otherClaim.status === "purchased" ? "· bought this" : "· planning to get this"}</span>
+          {otherClaim.claimer_id ? (
+            <PersonLabel person={who(otherClaim.claimer_id)} />
+          ) : (
+            <span className="font-medium text-foreground">Someone</span>
+          )}
+          <span>
+            {otherClaim.status === "purchased" ? "· bought this" : "· planning to get this"}
+            {!otherClaim.claimer_id ? " (anonymously)" : ""}
+          </span>
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        {myClaim ? (
-          <>
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent">
-              <Check className="h-4 w-4" /> You&rsquo;re getting this
-            </span>
-            {!removed && (
+
+      {pendingStatus ? (
+        <div className="rounded-lg border border-border bg-background p-3">
+          <p className="text-xs font-medium text-muted-foreground">Show this to the other givers as…</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => confirmClaim(false)} className={defaultAnonymous ? secondary : primary}>
+              Show my name
+            </button>
+            <button type="button" onClick={() => confirmClaim(true)} className={defaultAnonymous ? primary : secondary}>
+              Stay anonymous
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingStatus(null)}
+              className="rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          {myClaim ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent">
+                <Check className="h-4 w-4" /> You&rsquo;re getting this{myClaim.anonymous ? " (anonymously)" : ""}
+              </span>
+              {!removed && (
+                <button type="button" onClick={toggleStatus} disabled={busy} className={secondary}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <ShoppingBag className="h-4 w-4" />
+                    {myClaim.status === "purchased" ? "Purchased" : "Mark purchased"}
+                  </span>
+                </button>
+              )}
               <button
                 type="button"
-                onClick={toggleStatus}
+                onClick={release}
                 disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
               >
-                <ShoppingBag className="h-4 w-4" />
-                {myClaim.status === "purchased" ? "Purchased" : "Mark purchased"}
+                <Trash2 className="h-4 w-4" /> Release
               </button>
-            )}
-            <button
-              type="button"
-              onClick={release}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-            >
-              <Trash2 className="h-4 w-4" /> Release
-            </button>
-          </>
-        ) : otherClaim ? (
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground">
-            <Check className="h-4 w-4" /> Claimed
-          </span>
-        ) : removed ? (
-          <span className="text-sm text-muted-foreground">No longer available to claim.</span>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => doClaim("planning")}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-1.5 text-sm font-semibold text-brand-foreground transition-colors hover:bg-brand-strong disabled:opacity-60"
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />} Claim it
-            </button>
-            <button
-              type="button"
-              onClick={() => doClaim("purchased")}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-            >
-              Already bought it
-            </button>
-          </>
-        )}
-      </div>
+            </>
+          ) : otherClaim ? (
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground">
+              <Check className="h-4 w-4" /> Claimed
+            </span>
+          ) : removed ? (
+            <span className="text-sm text-muted-foreground">No longer available to claim.</span>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setPendingStatus("planning")}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-1.5 text-sm font-semibold text-brand-foreground transition-colors hover:bg-brand-strong disabled:opacity-60"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />} Claim it
+              </button>
+              <button type="button" onClick={() => setPendingStatus("purchased")} disabled={busy} className={secondary}>
+                Already bought it
+              </button>
+            </>
+          )}
+        </div>
+      )}
       {err && <p className="mt-2 text-sm text-brand-strong">{err}</p>}
     </div>
   );
@@ -328,6 +362,7 @@ function ItemBlock({
   claims,
   comments,
   currentUserId,
+  defaultAnonymous,
   who,
   onClaimChange,
   allClaims,
@@ -340,6 +375,7 @@ function ItemBlock({
   claims: Claim[];
   comments: Comment[];
   currentUserId: string;
+  defaultAnonymous: boolean;
   who: (id: string) => Person;
   onClaimChange: (next: Claim[]) => void;
   allClaims: Claim[];
@@ -355,6 +391,7 @@ function ItemBlock({
     removed,
     listId,
     currentUserId,
+    defaultAnonymous,
     who,
     allClaims,
     onClaimChange,

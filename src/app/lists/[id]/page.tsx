@@ -64,10 +64,8 @@ export default async function ListPage({
     .eq("list_id", id)
     .order("position", { ascending: true });
   const giverItems = (allItems ?? []) as ListItem[];
-  const itemIds = giverItems.map((i) => i.id);
-  const { data: claims } = itemIds.length
-    ? await supabase.from("claims").select("*").in("item_id", itemIds)
-    : { data: [] as Claim[] };
+  // list_claims redacts the claimer on anonymous claims that aren't the caller's own.
+  const { data: claims } = await supabase.rpc("list_claims", { p_list_id: id });
   const { data: comments } = await supabase
     .from("comments")
     .select("*")
@@ -80,7 +78,7 @@ export default async function ListPage({
       ...((claims ?? []) as Claim[]).map((c) => c.claimer_id),
       ...((comments ?? []) as Comment[]).map((c) => c.author_id),
     ]),
-  ];
+  ].filter((x): x is string => !!x);
   const { data: profs } = await supabase
     .from("profiles")
     .select("id,display_name,email")
@@ -92,6 +90,12 @@ export default async function ListPage({
     (profs ?? []).map((p) => [p.id, p.email ?? ""]),
   );
 
+  const { data: me } = await supabase
+    .from("profiles")
+    .select("default_anonymous")
+    .eq("id", user.id)
+    .single();
+
   return (
     <GiverView
       list={list as WishList}
@@ -101,6 +105,7 @@ export default async function ListPage({
       names={names}
       emails={emails}
       currentUserId={user.id}
+      defaultAnonymous={me?.default_anonymous ?? false}
       ownerName={names[list.owner_id] ?? "Someone"}
     />
   );

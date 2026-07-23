@@ -81,11 +81,12 @@ export interface Claim {
   id: string;
   item_id: string;
   option_id: string | null;
-  claimer_id: string;
+  claimer_id: string | null; // null when redacted (an anonymous claim by someone else)
   quantity: number;
   status: ClaimStatus;
+  anonymous: boolean;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface Comment {

@@ -279,12 +279,14 @@ export async function claimTarget(
   optionId: string | null,
   listId: string,
   status: ClaimStatus,
+  anonymous = false,
 ) {
   const { supabase } = await requireUser();
   const { data, error } = await supabase.rpc("claim_target", {
     p_item_id: itemId,
     p_option_id: optionId,
     p_status: status,
+    p_anonymous: anonymous,
   });
   if (error) {
     const msg = error.message || "";
