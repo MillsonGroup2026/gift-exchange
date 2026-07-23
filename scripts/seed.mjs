@@ -77,10 +77,21 @@ async function makeList(ownerId, title, occasion) {
   return data;
 }
 async function addItems(listId, rows) {
-  const { data } = await admin
-    .from("list_items")
-    .insert(rows.map((r, i) => ({ list_id: listId, position: i + 1, ...r })))
-    .select();
+  // Uniform keys for every row (PostgREST bulk insert requires it).
+  const norm = rows.map((r, i) => ({
+    list_id: listId,
+    position: i + 1,
+    title: r.title,
+    description: r.description ?? null,
+    links: r.links ?? [],
+    priority: r.priority ?? 2,
+    quantity: r.quantity ?? 1,
+  }));
+  const { data, error } = await admin.from("list_items").insert(norm).select();
+  if (error) {
+    console.error("addItems error:", error.message);
+    process.exit(1);
+  }
   return data;
 }
 
