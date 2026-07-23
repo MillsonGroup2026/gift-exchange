@@ -58,9 +58,11 @@ const testers = [];
 for (const email of TESTER_EMAILS) {
   const existing = byEmail.get(email.toLowerCase());
   if (existing) {
-    await admin.auth.admin.updateUserById(existing.id, { password: DEMO_PASSWORD, email_confirm: true });
+    // IMPORTANT: never reset a real user's password here — doing so clobbers
+    // whatever they set and locks them out. Only confirm the account.
+    await admin.auth.admin.updateUserById(existing.id, { email_confirm: true });
     testers.push({ email, id: existing.id });
-    console.log(`enabled password sign-in for existing account: ${email}`);
+    console.log(`found tester account: ${email} (password left untouched)`);
   }
 }
 
