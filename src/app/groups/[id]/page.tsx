@@ -37,6 +37,16 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
     : { data: [] as { id: string; display_name: string | null; email: string | null }[] };
   const profMap = new Map((profs ?? []).map((p) => [p.id, p]));
 
+  // Lists shared with THIS group that the viewer can open — grouped by owner so
+  // the roster can mark who has a list and link straight to it.
+  const { data: sharedLists } = await supabase.rpc("group_member_lists", { p_group_id: id });
+  const listsByOwner = new Map<string, { id: string; title: string }[]>();
+  for (const l of (sharedLists ?? []) as { list_id: string; owner_id: string; title: string }[]) {
+    const arr = listsByOwner.get(l.owner_id) ?? [];
+    arr.push({ id: l.list_id, title: l.title });
+    listsByOwner.set(l.owner_id, arr);
+  }
+
   const memberViews: MemberView[] = (members ?? []).map((m) => {
     const p = m.user_id ? profMap.get(m.user_id) : null;
     return {
@@ -47,6 +57,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
       name: p?.display_name ?? m.invited_email ?? "Someone",
       email: p?.email ?? m.invited_email ?? "",
       isSelf: m.user_id === user.id,
+      lists: m.user_id ? listsByOwner.get(m.user_id) ?? [] : [],
     };
   });
 

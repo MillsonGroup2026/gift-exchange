@@ -234,8 +234,13 @@ function ClaimTarget({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [pendingStatus, setPendingStatus] = useState<ClaimStatus | null>(null);
-  const myClaim = targetClaims.find((c) => c.claimer_id === currentUserId) ?? null;
-  const otherClaim = targetClaims.find((c) => c.claimer_id !== currentUserId) ?? null;
+  // "You're getting this" must only ever show for the caller's OWN claim.
+  // Require a real currentUserId, and treat every claim that isn't mine as someone else's.
+  const myClaim = currentUserId ? targetClaims.find((c) => c.claimer_id === currentUserId) ?? null : null;
+  const otherClaim = targetClaims.find((c) => c.id !== myClaim?.id) ?? null;
+  // Name of the other claimer, defended so it can never resolve to "You".
+  const otherPerson = otherClaim?.claimer_id ? who(otherClaim.claimer_id) : null;
+  const otherName = otherPerson && otherPerson.name !== "You" ? otherPerson.name : "Someone else";
 
   async function confirmClaim(anonymous: boolean) {
     if (!pendingStatus) return;
@@ -272,13 +277,10 @@ function ClaimTarget({
       {otherClaim && (
         <p className="mb-2 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
           <Gift className="h-3.5 w-3.5 flex-none text-accent" />
-          {otherClaim.claimer_id ? (
-            <PersonLabel person={who(otherClaim.claimer_id)} />
-          ) : (
-            <span className="font-medium text-foreground">Someone</span>
-          )}
           <span>
-            {otherClaim.status === "purchased" ? "· bought this" : "· planning to get this"}
+            <span className="font-medium text-foreground">{otherName}</span>{" "}
+            {otherClaim.status === "purchased" ? "has bought this" : "is getting this"}
+            {otherPerson?.email ? <span className="text-xs"> · {otherPerson.email}</span> : null}
             {!otherClaim.claimer_id ? " (anonymously)" : ""}
           </span>
         </p>
@@ -329,7 +331,7 @@ function ClaimTarget({
             </>
           ) : otherClaim ? (
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground">
-              <Check className="h-4 w-4" /> Claimed
+              <Check className="h-4 w-4" /> {otherClaim.status === "purchased" ? "Already bought" : "Claimed"}
             </span>
           ) : removed ? (
             <span className="text-sm text-muted-foreground">No longer available to claim.</span>
@@ -420,6 +422,16 @@ function ItemBlock({
 
       {hasOptions ? (
         <div className="mt-4 space-y-4">
+          {/* A whole-item claim can exist if someone claimed the item BEFORE options
+              were added. Surface it so it's never hidden (prevents double-buying). */}
+          {claimsFor(null).length > 0 && (
+            <div className="rounded-xl border border-accent/30 bg-accent/5 p-3">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">
+                Someone claimed the whole item before these options were added:
+              </p>
+              <ClaimTarget {...claimTargetProps} optionId={null} targetClaims={claimsFor(null)} />
+            </div>
+          )}
           <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Claim an option</p>
           {item.options.map((o) => (
             <div key={o.id} className="space-y-2">

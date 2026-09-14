@@ -12,6 +12,7 @@ import {
   Mail,
   Plus,
   RefreshCw,
+  ScrollText,
   Trash2,
   UserMinus,
 } from "lucide-react";
@@ -35,6 +36,7 @@ export type MemberView = {
   name: string;
   email: string;
   isSelf: boolean;
+  lists: { id: string; title: string }[];
 };
 
 export function GroupDetail({
@@ -74,7 +76,7 @@ export function GroupDetail({
         const m = r.member as { id: string; user_id: string | null; status: string };
         setMembers((prev) => [
           ...prev,
-          { id: m.id, user_id: m.user_id, role: "member", status: m.status, name: clean, email: clean, isSelf: false },
+          { id: m.id, user_id: m.user_id, role: "member", status: m.status, name: clean, email: clean, isSelf: false, lists: [] },
         ]);
         setEmail("");
       }
@@ -146,6 +148,26 @@ export function GroupDetail({
                     </div>
                     {m.email && m.email !== m.name && (
                       <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+                    )}
+                    {m.lists.length > 0 ? (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {m.lists.map((l) => (
+                          <Link
+                            key={l.id}
+                            href={`/lists/${l.id}`}
+                            className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand-strong transition-colors hover:bg-brand/20"
+                          >
+                            <ScrollText className="h-3 w-3 flex-none" />
+                            <span className="max-w-[12rem] truncate">
+                              {m.isSelf ? `${l.title} (yours)` : l.title}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      m.user_id && (
+                        <p className="mt-1 text-xs text-muted-foreground/70">No wishlist shared yet</p>
+                      )
                     )}
                   </div>
                   {isOwner && m.role !== "owner" && (
