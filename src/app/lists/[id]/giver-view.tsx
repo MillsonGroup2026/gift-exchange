@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Gift, Loader2, Lock, MessageCircle, ShoppingBag, Tras
 import { Wordmark } from "@/components/brand";
 import { RichText } from "@/components/rich-text";
 import { SubItemDisplay } from "@/components/sub-item-display";
+import { ItemLinks } from "@/components/item-links";
 import { ItemIcon } from "@/components/item-icon";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -419,6 +420,8 @@ function ItemBlock({
           {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
         </div>
       </div>
+
+      <ItemLinks item={item} className="mt-4" />
 
       {hasOptions ? (
         <div className="mt-4 space-y-4">

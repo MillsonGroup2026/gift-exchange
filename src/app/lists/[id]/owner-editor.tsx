@@ -111,6 +111,7 @@ export function OwnerEditor({
       title: patch.title,
       description: patch.description,
       priority: patch.priority,
+      links: patch.links,
     });
     let savedOptions: ItemOption[] | undefined;
     if (patch.options !== undefined) {
@@ -125,6 +126,7 @@ export function OwnerEditor({
               ...(patch.title !== undefined ? { title: patch.title } : {}),
               ...(patch.description !== undefined ? { description: patch.description } : {}),
               ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
+              ...(patch.links !== undefined ? { links: patch.links, url: null, link_meta: null } : {}),
               ...(savedOptions ? { options: savedOptions } : {}),
             }
           : i,

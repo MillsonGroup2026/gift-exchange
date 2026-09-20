@@ -4,10 +4,12 @@ import { Gift, Lock } from "lucide-react";
 import { Wordmark } from "@/components/brand";
 import { RichText } from "@/components/rich-text";
 import { SubItemDisplay } from "@/components/sub-item-display";
+import { ItemLinks } from "@/components/item-links";
 import { ItemIcon } from "@/components/item-icon";
 import { createClient } from "@/lib/supabase/server";
 import {
   PRIORITY_LABELS,
+  type ItemLink,
   type LinkMeta,
   type Priority,
   type RichText as RichTextT,
@@ -33,6 +35,9 @@ type PreviewItem = {
   title: string;
   description: RichTextT;
   priority: Priority;
+  url: string | null;
+  link_meta: LinkMeta | null;
+  links: ItemLink[];
   options: PreviewOption[];
 };
 
@@ -126,6 +131,7 @@ export default async function SharePage({
                 </span>
               </div>
               {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
+              <ItemLinks item={item} className="mt-3" />
               {item.options?.length > 0 && (
                 <div className="mt-3 space-y-2">
                   {item.options.map((o) => (

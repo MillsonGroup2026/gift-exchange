@@ -119,7 +119,13 @@ export async function updateItem(
   if (patch.description !== undefined) update.description = cleanDescription(patch.description);
   if (patch.url !== undefined) update.url = patch.url?.trim() || null;
   if (patch.link_meta !== undefined) update.link_meta = patch.link_meta;
-  if (patch.links !== undefined) update.links = sanitizeLinks(patch.links);
+  if (patch.links !== undefined) {
+    // `links` is the source of truth for item-level links; retire the legacy
+    // single-url columns on this item so a cleared list can't resurface them.
+    update.links = sanitizeLinks(patch.links);
+    update.url = null;
+    update.link_meta = null;
+  }
   if (patch.priority !== undefined) update.priority = patch.priority;
   if (patch.quantity !== undefined) update.quantity = Math.max(1, Math.floor(patch.quantity));
 

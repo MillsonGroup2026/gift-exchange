@@ -5,9 +5,11 @@ import { Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { RichText } from "@/components/rich-text";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { SubItemDisplay } from "@/components/sub-item-display";
+import { ItemLinks, effectiveItemLinks } from "@/components/item-links";
 import { ItemIcon } from "@/components/item-icon";
 import {
   PRIORITY_LABELS,
+  type ItemLink,
   type ItemOptionInput,
   type LinkMeta,
   type ListItem,
@@ -19,6 +21,7 @@ export type ItemPatch = {
   title?: string;
   description?: RichTextT;
   options?: ItemOptionInput[];
+  links?: ItemLink[];
   priority?: Priority;
 };
 
@@ -46,7 +49,9 @@ export function OwnerItemCard({
   const [desc, setDesc] = useState<RichTextT>(item.description);
   const [priority, setPriority] = useState<Priority>(item.priority);
   const [options, setOptions] = useState<ItemOptionInput[]>(item.options ?? []);
+  const [links, setLinks] = useState<ItemLink[]>(effectiveItemLinks(item));
   const [fetchingIdx, setFetchingIdx] = useState<number | null>(null);
+  const [fetchingLinkIdx, setFetchingLinkIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   function updateOption(i: number, patch: Partial<ItemOptionInput>) {
@@ -76,10 +81,38 @@ export function OwnerItemCard({
     }
   }
 
+  function updateLink(i: number, url: string) {
+    setLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, url } : l)));
+  }
+  function addLink() {
+    setLinks((prev) => [...prev, { url: "", label: null, link_meta: null }]);
+  }
+  function removeLink(i: number) {
+    setLinks((prev) => prev.filter((_, idx) => idx !== i));
+  }
+  async function fetchLinkMeta(i: number) {
+    const raw = (links[i]?.url ?? "").trim();
+    if (!raw) return;
+    const full = /^https?:\/\//i.test(raw) ? raw : "https://" + raw;
+    setFetchingLinkIdx(i);
+    try {
+      const r = await fetch(`/api/link-meta?url=${encodeURIComponent(full)}`);
+      if (r.ok) {
+        const meta = (await r.json()) as LinkMeta;
+        setLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, url: full, link_meta: meta } : l)));
+      }
+    } catch {
+      /* best-effort */
+    } finally {
+      setFetchingLinkIdx(null);
+    }
+  }
+
   async function save() {
     setSaving(true);
     const clean = options.filter((o) => (o.name ?? "").trim() || (o.url ?? "").trim() || (o.note ?? "").trim());
-    await onSave({ title: title.trim() || "Untitled item", description: desc, priority, options: clean });
+    const cleanLinks = links.filter((l) => (l.url ?? "").trim());
+    await onSave({ title: title.trim() || "Untitled item", description: desc, priority, options: clean, links: cleanLinks });
     setSaving(false);
     setEditing(false);
   }
@@ -88,6 +121,7 @@ export function OwnerItemCard({
     setDesc(item.description);
     setPriority(item.priority);
     setOptions(item.options ?? []);
+    setLinks(effectiveItemLinks(item));
     setEditing(false);
   }
 
@@ -101,6 +135,44 @@ export function OwnerItemCard({
           autoFocus
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base font-medium outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
         />
+
+        {/* Links */}
+        <div className="mt-3">
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            Link (optional) — where to buy or see it. Add more than one if you like.
+          </label>
+          {links.length > 0 && (
+            <div className="space-y-2">
+              {links.map((l, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    value={l.url}
+                    onChange={(e) => updateLink(i, e.target.value)}
+                    onBlur={() => fetchLinkMeta(i)}
+                    placeholder="Link (e.g. amazon.com/…)"
+                    className="min-w-0 flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
+                  />
+                  {fetchingLinkIdx === i && <Loader2 className="h-4 w-4 flex-none animate-spin text-muted-foreground" />}
+                  <button
+                    type="button"
+                    onClick={() => removeLink(i)}
+                    className="flex-none text-muted-foreground hover:text-brand-strong"
+                    aria-label="Remove link"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={addLink}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <Plus className="h-4 w-4" /> Add link
+          </button>
+        </div>
 
         {/* Sub-items */}
         <div className="mt-3">
@@ -227,6 +299,7 @@ export function OwnerItemCard({
           </span>
         </div>
         {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
+        <ItemLinks item={item} className="mt-3" />
         {item.options?.length > 0 && (
           <div className="mt-3 space-y-2">
             {item.options.map((o) => (
