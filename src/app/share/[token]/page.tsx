@@ -5,6 +5,7 @@ import { Wordmark } from "@/components/brand";
 import { RichText } from "@/components/rich-text";
 import { SubItemDisplay } from "@/components/sub-item-display";
 import { ItemLinks } from "@/components/item-links";
+import { ItemPhoto } from "@/components/item-photo";
 import { ItemIcon } from "@/components/item-icon";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -29,6 +30,7 @@ type PreviewOption = {
   url: string | null;
   link_meta: LinkMeta | null;
   note: string | null;
+  image_url: string | null;
 };
 type PreviewItem = {
   id: string;
@@ -38,6 +40,7 @@ type PreviewItem = {
   url: string | null;
   link_meta: LinkMeta | null;
   links: ItemLink[];
+  image_url: string | null;
   options: PreviewOption[];
 };
 
@@ -131,6 +134,7 @@ export default async function SharePage({
                 </span>
               </div>
               {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
+              {item.image_url && <ItemPhoto url={item.image_url} alt={item.title} maxH="max-h-64" className="mt-3" />}
               <ItemLinks item={item} className="mt-3" />
               {item.options?.length > 0 && (
                 <div className="mt-3 space-y-2">

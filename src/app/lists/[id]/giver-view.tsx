@@ -7,6 +7,7 @@ import { Wordmark } from "@/components/brand";
 import { RichText } from "@/components/rich-text";
 import { SubItemDisplay } from "@/components/sub-item-display";
 import { ItemLinks } from "@/components/item-links";
+import { ItemPhoto } from "@/components/item-photo";
 import { ItemIcon } from "@/components/item-icon";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -421,6 +422,7 @@ function ItemBlock({
         </div>
       </div>
 
+      {item.image_url && <ItemPhoto url={item.image_url} alt={item.title} maxH="max-h-64" className="mt-4" />}
       <ItemLinks item={item} className="mt-4" />
 
       {hasOptions ? (

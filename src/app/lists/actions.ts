@@ -109,6 +109,7 @@ export async function updateItem(
     url?: string | null;
     link_meta?: unknown;
     links?: ItemLink[];
+    image_url?: string | null;
     priority?: Priority;
     quantity?: number;
   },
@@ -116,6 +117,7 @@ export async function updateItem(
   const { supabase } = await requireUser();
   const update: Record<string, unknown> = {};
   if (patch.title !== undefined) update.title = patch.title.trim() || "Untitled item";
+  if (patch.image_url !== undefined) update.image_url = patch.image_url?.trim() || null;
   if (patch.description !== undefined) update.description = cleanDescription(patch.description);
   if (patch.url !== undefined) update.url = patch.url?.trim() || null;
   if (patch.link_meta !== undefined) update.link_meta = patch.link_meta;
@@ -185,8 +187,9 @@ export async function setItemOptions(itemId: string, listId: string, options: It
     const name = o.name?.trim() || null;
     const url = o.url?.trim() || null;
     const note = o.note?.trim() || null;
-    if (!name && !url && !note) continue;
-    const row = { item_id: itemId, name, url, link_meta: o.link_meta ?? null, note, position: pos++ };
+    const image_url = o.image_url?.trim() || null;
+    if (!name && !url && !note && !image_url) continue;
+    const row = { item_id: itemId, name, url, link_meta: o.link_meta ?? null, note, image_url, position: pos++ };
     if (o.id && existingIds.has(o.id)) await supabase.from("list_item_options").update(row).eq("id", o.id);
     else await supabase.from("list_item_options").insert(row);
   }

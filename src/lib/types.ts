@@ -34,6 +34,7 @@ export interface ItemOption {
   url: string | null;
   link_meta: LinkMeta | null;
   note: string | null;
+  image_url: string | null;
   position: number;
   created_at: string;
 }
@@ -45,6 +46,7 @@ export interface ItemOptionInput {
   url?: string | null;
   link_meta?: LinkMeta | null;
   note?: string | null;
+  image_url?: string | null;
 }
 
 export interface WishList {
@@ -68,6 +70,7 @@ export interface ListItem {
   url: string | null;
   link_meta: LinkMeta | null;
   links: ItemLink[];
+  image_url: string | null;
   options: ItemOption[];
   priority: Priority;
   quantity: number;

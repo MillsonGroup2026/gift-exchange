@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { Check, ImagePlus, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { RichText } from "@/components/rich-text";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { SubItemDisplay } from "@/components/sub-item-display";
 import { ItemLinks, effectiveItemLinks } from "@/components/item-links";
+import { ItemPhoto } from "@/components/item-photo";
 import { ItemIcon } from "@/components/item-icon";
+import { uploadItemImage } from "@/lib/upload-image";
 import {
   PRIORITY_LABELS,
   type ItemLink,
@@ -22,6 +24,7 @@ export type ItemPatch = {
   description?: RichTextT;
   options?: ItemOptionInput[];
   links?: ItemLink[];
+  image_url?: string | null;
   priority?: Priority;
 };
 
@@ -50,9 +53,14 @@ export function OwnerItemCard({
   const [priority, setPriority] = useState<Priority>(item.priority);
   const [options, setOptions] = useState<ItemOptionInput[]>(item.options ?? []);
   const [links, setLinks] = useState<ItemLink[]>(effectiveItemLinks(item));
+  const [imageUrl, setImageUrl] = useState<string | null>(item.image_url ?? null);
   const [fetchingIdx, setFetchingIdx] = useState<number | null>(null);
   const [fetchingLinkIdx, setFetchingLinkIdx] = useState<number | null>(null);
+  const [uploadingItem, setUploadingItem] = useState(false);
+  const [uploadingOptIdx, setUploadingOptIdx] = useState<number | null>(null);
+  const [photoErr, setPhotoErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const itemFileRef = useRef<HTMLInputElement>(null);
 
   function updateOption(i: number, patch: Partial<ItemOptionInput>) {
     setOptions((prev) => prev.map((o, idx) => (idx === i ? { ...o, ...patch } : o)));
@@ -108,11 +116,34 @@ export function OwnerItemCard({
     }
   }
 
+  async function onItemFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // let the same file be re-picked later
+    if (!file) return;
+    setPhotoErr(null);
+    setUploadingItem(true);
+    const r = await uploadItemImage(file);
+    if (r.error) setPhotoErr(r.error);
+    else if (r.url) setImageUrl(r.url);
+    setUploadingItem(false);
+  }
+  async function onOptFile(i: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoErr(null);
+    setUploadingOptIdx(i);
+    const r = await uploadItemImage(file);
+    if (r.error) setPhotoErr(r.error);
+    else if (r.url) updateOption(i, { image_url: r.url });
+    setUploadingOptIdx(null);
+  }
+
   async function save() {
     setSaving(true);
     const clean = options.filter((o) => (o.name ?? "").trim() || (o.url ?? "").trim() || (o.note ?? "").trim());
     const cleanLinks = links.filter((l) => (l.url ?? "").trim());
-    await onSave({ title: title.trim() || "Untitled item", description: desc, priority, options: clean, links: cleanLinks });
+    await onSave({ title: title.trim() || "Untitled item", description: desc, priority, options: clean, links: cleanLinks, image_url: imageUrl });
     setSaving(false);
     setEditing(false);
   }
@@ -122,6 +153,8 @@ export function OwnerItemCard({
     setPriority(item.priority);
     setOptions(item.options ?? []);
     setLinks(effectiveItemLinks(item));
+    setImageUrl(item.image_url ?? null);
+    setPhotoErr(null);
     setEditing(false);
   }
 
@@ -135,6 +168,45 @@ export function OwnerItemCard({
           autoFocus
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base font-medium outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
         />
+
+        {/* Photo */}
+        <div className="mt-3">
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">Photo (optional)</label>
+          {imageUrl ? (
+            <div className="space-y-1.5">
+              <div className="relative inline-block">
+                <ItemPhoto url={imageUrl} alt={title} maxH="max-h-48" />
+                <button
+                  type="button"
+                  onClick={() => setImageUrl(null)}
+                  className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-background/90 text-muted-foreground shadow-sm ring-1 ring-border transition-colors hover:text-brand-strong"
+                  aria-label="Remove photo"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => itemFileRef.current?.click()}
+                disabled={uploadingItem}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
+              >
+                {uploadingItem ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />} Change photo
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => itemFileRef.current?.click()}
+              disabled={uploadingItem}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-60"
+            >
+              {uploadingItem ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />} Add photo
+            </button>
+          )}
+          <input ref={itemFileRef} type="file" accept="image/*" onChange={onItemFile} className="hidden" />
+          {photoErr && <p className="mt-1 text-xs text-brand-strong">{photoErr}</p>}
+        </div>
 
         {/* Links */}
         <div className="mt-3">
@@ -217,6 +289,27 @@ export function OwnerItemCard({
                   placeholder="Note (optional) — e.g. size L, blue, any color is fine"
                   className="mt-2 w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-xs outline-none focus-visible:border-ring"
                 />
+                <div className="mt-2 flex items-center gap-2">
+                  {o.image_url && (
+                    <div className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={o.image_url} alt="" className="h-12 w-12 rounded-md border border-border object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => updateOption(i, { image_url: null })}
+                        className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-background text-muted-foreground shadow ring-1 ring-border transition-colors hover:text-brand-strong"
+                        aria-label="Remove sub-item photo"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted">
+                    {uploadingOptIdx === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                    {o.image_url ? "Change photo" : "Add photo"}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => onOptFile(i, e)} />
+                  </label>
+                </div>
               </div>
             ))}
           </div>
@@ -298,6 +391,7 @@ export function OwnerItemCard({
             {PRIORITY_LABELS[item.priority]}
           </span>
         </div>
+        {item.image_url && <ItemPhoto url={item.image_url} alt={item.title} maxH="max-h-56" className="mt-3" />}
         {item.description?.html && <RichText html={item.description.html} className="mt-2" />}
         <ItemLinks item={item} className="mt-3" />
         {item.options?.length > 0 && (
