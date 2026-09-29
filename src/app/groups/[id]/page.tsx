@@ -71,6 +71,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
     <GroupDetail
       group={group}
       isOwner={group.owner_id === user.id}
+      currentUserId={user.id}
       members={memberViews}
       exchanges={(exchanges ?? []) as SantaExchange[]}
       joinToken={group.join_token}

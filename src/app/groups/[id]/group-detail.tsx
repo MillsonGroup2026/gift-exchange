@@ -20,6 +20,7 @@ import { Wordmark } from "@/components/brand";
 import type { Group, SantaExchange } from "@/lib/types";
 import {
   createExchange,
+  deleteExchange,
   deleteGroup,
   inviteToGroup,
   leaveGroup,
@@ -42,6 +43,7 @@ export type MemberView = {
 export function GroupDetail({
   group,
   isOwner,
+  currentUserId,
   members: initialMembers,
   exchanges,
   joinToken: initialToken,
@@ -49,6 +51,7 @@ export function GroupDetail({
 }: {
   group: Group;
   isOwner: boolean;
+  currentUserId: string;
   members: MemberView[];
   exchanges: SantaExchange[];
   joinToken: string | null;
@@ -56,6 +59,8 @@ export function GroupDetail({
 }) {
   const [name, setName] = useState(group.name);
   const [members, setMembers] = useState(initialMembers);
+  const [exchangeList, setExchangeList] = useState(exchanges);
+  const [santaErr, setSantaErr] = useState<string | null>(null);
   const [token, setToken] = useState(initialToken);
   const [email, setEmail] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -212,22 +217,50 @@ export function GroupDetail({
             <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
               <Gift className="h-4 w-4" /> Secret Santa
             </h2>
+            {santaErr && <p className="mt-2 text-sm text-brand-strong">{santaErr}</p>}
             <div className="mt-3 space-y-2">
-              {exchanges.map((ex) => (
-                <Link
+              {exchangeList.map((ex) => (
+                <div
                   key={ex.id}
-                  href={`/groups/${group.id}/santa/${ex.id}`}
-                  className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-brand/40"
+                  className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-brand/40"
                 >
-                  <span className="font-medium text-foreground">{ex.name}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      ex.status === "assigned" ? "bg-accent/10 text-accent" : "bg-muted text-muted-foreground"
-                    }`}
+                  <Link
+                    href={`/groups/${group.id}/santa/${ex.id}`}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3"
                   >
-                    {ex.status === "assigned" ? "Names drawn" : "Setting up"}
-                  </span>
-                </Link>
+                    <span className="truncate font-medium text-foreground">{ex.name}</span>
+                    <span
+                      className={`flex-none rounded-full px-2 py-0.5 text-xs font-medium ${
+                        ex.status === "assigned" ? "bg-accent/10 text-accent" : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {ex.status === "assigned" ? "Names drawn" : "Setting up"}
+                    </span>
+                  </Link>
+                  {ex.organizer_id === currentUserId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          !confirm(
+                            `Delete "${ex.name}"? This removes its participants, teams, rules, and any drawn names. This can't be undone.`,
+                          )
+                        )
+                          return;
+                        setSantaErr(null);
+                        start(async () => {
+                          const r = await deleteExchange(ex.id, group.id);
+                          if (r?.error) setSantaErr(r.error);
+                          else setExchangeList((prev) => prev.filter((e) => e.id !== ex.id));
+                        });
+                      }}
+                      className="flex-none text-muted-foreground transition-colors hover:text-brand-strong disabled:opacity-50"
+                      aria-label={`Delete ${ex.name}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
             <form action={createExchange.bind(null, group.id)} className="mt-3 flex items-center gap-2">

@@ -14,7 +14,7 @@ import {
   setParticipants as setParticipantsAction,
 } from "@/app/groups/actions";
 
-export type Candidate = { user_id: string; name: string; email: string };
+export type Candidate = { user_id: string; name: string; email: string; joined: boolean };
 export type ParticipantView = { id: string; user_id: string; team: string | null; name: string; email: string };
 
 export function SantaOrganizer({
@@ -123,12 +123,30 @@ export function SantaOrganizer({
         <p className="text-xs text-muted-foreground">Pick people, then give each a team (e.g. Conners, Lake).</p>
         {candidates.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
-            No active members yet — invite people to the group first.
+            No members yet — invite people to the group first.
           </p>
         ) : (
           <div className="mt-2 divide-y divide-border overflow-hidden rounded-xl border border-border">
             {candidates.map((c) => {
-              const p = parts.find((x) => x.user_id === c.user_id);
+              const p = c.joined ? parts.find((x) => x.user_id === c.user_id) : undefined;
+              if (!c.joined) {
+                // Invited but hasn't accepted yet — shown so the roster is complete,
+                // but not selectable (they have no account to assign to).
+                return (
+                  <div key={c.email || c.name} className="flex items-center gap-3 bg-muted/30 px-3 py-2">
+                    <span className="h-4 w-4 flex-none rounded border border-dashed border-border" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-muted-foreground">{c.name}</span>
+                      {c.email && c.email !== c.name && (
+                        <span className="block truncate text-xs text-muted-foreground">{c.email}</span>
+                      )}
+                    </span>
+                    <span className="flex-none rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      Hasn&rsquo;t joined yet
+                    </span>
+                  </div>
+                );
+              }
               return (
                 <label key={c.user_id} className="flex items-center gap-3 bg-background px-3 py-2">
                   <input
@@ -154,6 +172,12 @@ export function SantaOrganizer({
               );
             })}
           </div>
+        )}
+        {candidates.some((c) => !c.joined) && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            People marked &ldquo;hasn&rsquo;t joined yet&rdquo; were invited but haven&rsquo;t accepted — they can&rsquo;t be
+            added until they join the group.
+          </p>
         )}
       </div>
 

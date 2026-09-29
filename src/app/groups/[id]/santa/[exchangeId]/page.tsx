@@ -30,12 +30,14 @@ export default async function SantaPage({
 
   const isOrganizer = exchange.organizer_id === user.id;
 
+  // All members, so the organizer sees everyone — including people who were
+  // invited but haven't accepted yet (they can't be drawn until they join).
   const { data: gm } = await supabase
     .from("group_members")
-    .select("user_id")
-    .eq("group_id", exchange.group_id)
-    .eq("status", "active");
-  const memberIds = (gm ?? []).map((m) => m.user_id).filter(Boolean) as string[];
+    .select("user_id, invited_email, status")
+    .eq("group_id", exchange.group_id);
+  const members = gm ?? [];
+  const memberIds = members.map((m) => m.user_id).filter(Boolean) as string[];
 
   const { data: parts } = await supabase
     .from("santa_participants")
@@ -49,11 +51,20 @@ export default async function SantaPage({
   const nameOf = (uid: string) => (profs ?? []).find((p) => p.id === uid)?.display_name ?? "Someone";
   const emailOf = (uid: string) => (profs ?? []).find((p) => p.id === uid)?.email ?? "";
 
-  const candidates: Candidate[] = memberIds.map((uid) => ({
-    user_id: uid,
-    name: nameOf(uid),
-    email: emailOf(uid),
-  }));
+  // Joined (active, with a real account) first; then pending invitees.
+  const candidates: Candidate[] = [
+    ...members
+      .filter((m) => m.status === "active" && m.user_id)
+      .map((m) => ({ user_id: m.user_id as string, name: nameOf(m.user_id as string), email: emailOf(m.user_id as string), joined: true })),
+    ...members
+      .filter((m) => !(m.status === "active" && m.user_id))
+      .map((m) => ({
+        user_id: (m.user_id as string) ?? "",
+        name: m.user_id ? nameOf(m.user_id) : m.invited_email ?? "Invited",
+        email: m.user_id ? emailOf(m.user_id) : m.invited_email ?? "",
+        joined: false,
+      })),
+  ];
   const participants: ParticipantView[] = (parts ?? []).map((p) => ({
     id: p.id,
     user_id: p.user_id,

@@ -136,8 +136,9 @@ export async function createExchange(groupId: string, formData: FormData) {
 export async function deleteExchange(exchangeId: string, groupId: string) {
   const { supabase } = await requireUser();
   const { error } = await supabase.from("santa_exchanges").delete().eq("id", exchangeId);
-  if (error) throw new Error(error.message);
-  redirect(`/groups/${groupId}`);
+  if (error) return { error: error.message };
+  revalidatePath(`/groups/${groupId}`);
+  return { ok: true };
 }
 
 export async function setParticipants(exchangeId: string, userIds: string[]) {
