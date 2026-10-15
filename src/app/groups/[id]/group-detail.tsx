@@ -237,7 +237,7 @@ export function GroupDetail({
                       {ex.status === "assigned" ? "Names drawn" : "Setting up"}
                     </span>
                   </Link>
-                  {ex.organizer_id === currentUserId && (
+                  {(isOwner || ex.organizer_id === currentUserId) && (
                     <button
                       type="button"
                       onClick={() => {
